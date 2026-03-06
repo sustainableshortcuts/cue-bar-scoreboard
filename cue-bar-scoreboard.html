@@ -1,0 +1,1946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Club Cue — Scoreboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8; --bg2: #ede7d9; --card: #ffffff;
+    --orange: #e8622a; --orange-dark: #c44e1e; --orange-light: #f4976c;
+    --text: #1a1208; --muted: #8a7a65; --border: #d9cfbc; --dark: #2a1f0f;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
+
+  /* HEADER */
+  header { background:var(--dark); text-align:center; padding:2rem 1rem 1.5rem; position:relative; overflow:hidden; }
+  header::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--orange); }
+  header::before { content:''; position:absolute; top:-50px; right:-50px; width:180px; height:180px; border-radius:50%; background:rgba(232,98,42,0.1); pointer-events:none; }
+  .logo-eyebrow { font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.35em; color:var(--orange-light); text-transform:uppercase; margin-bottom:0.3rem; display:block; }
+  .logo { font-family:'Playfair Display',serif; font-style:italic; font-size:clamp(2.5rem,9vw,4rem); font-weight:900; color:#fff; line-height:1; text-shadow:0 2px 20px rgba(255,255,255,0.15); }
+  .tagline { font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.25em; color:#6b5f4e; text-transform:uppercase; margin-top:0.5rem; }
+  #lang-toggle:hover { background:rgba(255,255,255,0.14); }
+
+  /* NAV */
+  .nav { background:var(--dark); display:flex; justify-content:center; }
+  .nav-btn { background:transparent; border:none; border-bottom:3px solid transparent; color:#6b5f4e; font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; padding:0.85rem 1rem; cursor:pointer; transition:all 0.2s; }
+  .nav-btn.active { color:var(--orange); border-bottom-color:var(--orange); }
+  .nav-btn:hover:not(.active) { color:#b0a090; }
+
+  .page { display:none; padding:1.8rem 1rem 4rem; max-width:640px; margin:0 auto; }
+  .page.active { display:block; animation:fadeUp 0.3s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes slideIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+
+  .section-title { font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.3em; color:var(--muted); text-transform:uppercase; margin-bottom:1rem; display:flex; align-items:center; gap:0.7rem; }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* GAME CARDS */
+  .game-cards { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:2rem; }
+  .game-card { border:2px solid var(--border); border-radius:14px; cursor:pointer; transition:all 0.28s cubic-bezier(0.34,1.3,0.64,1); position:relative; overflow:hidden; aspect-ratio:3/4; background:var(--dark); box-shadow:3px 4px 16px rgba(0,0,0,0.18); }
+  .game-card:hover { border-color:var(--orange); transform:translateY(-4px) rotate(-1deg); box-shadow:6px 12px 28px rgba(232,98,42,0.22); }
+  .game-card.selected { border-color:var(--orange); transform:translateY(-4px) rotate(0.8deg); box-shadow:6px 12px 28px rgba(232,98,42,0.28); }
+  .card-svg { position:absolute; inset:0; width:100%; height:100%; }
+  .card-overlay { position:absolute; inset:0; background:linear-gradient(to top,rgba(20,10,3,0.88) 0%,rgba(20,10,3,0.25) 50%,transparent 100%); transition:background 0.3s; }
+  .game-card.selected .card-overlay { background:linear-gradient(to top,rgba(232,98,42,0.7) 0%,rgba(20,10,3,0.2) 60%,transparent 100%); }
+  .card-sticker { position:absolute; top:10px; left:10px; background:var(--orange); color:#fff; font-family:'DM Mono',monospace; font-size:0.52rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.22rem 0.55rem; border-radius:3px; z-index:3; box-shadow:2px 2px 6px rgba(0,0,0,0.3); transform:rotate(-2.5deg); transition:background 0.2s,color 0.2s; }
+  .game-card.selected .card-sticker { background:#fff; color:var(--orange); }
+  .card-label { position:absolute; bottom:0; left:0; right:0; padding:1rem 1rem 0.9rem; z-index:3; }
+  .game-name { font-family:'Playfair Display',serif; font-style:italic; font-size:1.4rem; font-weight:900; color:#fff; line-height:1; }
+  .card-sub { font-family:'DM Mono',monospace; font-size:0.57rem; letter-spacing:0.12em; color:rgba(255,255,255,0.5); text-transform:uppercase; margin-top:0.2rem; }
+
+  /* FORM */
+  .form-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.4rem; margin-bottom:1rem; }
+  .form-group { margin-bottom:1rem; }
+  .form-group:last-child { margin-bottom:0; }
+  label { display:block; font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.2em; color:var(--muted); text-transform:uppercase; margin-bottom:0.4rem; }
+  input[type="text"],input[type="number"],select { width:100%; background:var(--bg2); border:1.5px solid var(--border); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:1rem; padding:0.7rem 1rem; outline:none; transition:border-color 0.2s,box-shadow 0.2s; -webkit-appearance:none; }
+  input:focus,select:focus { border-color:var(--orange); box-shadow:0 0 0 3px rgba(232,98,42,0.1); background:#fff; }
+  select option { background:#fff; }
+  .score-input { text-align:center !important; font-size:1.8rem !important; font-family:'Playfair Display',serif !important; font-weight:700 !important; }
+
+  .btn { width:100%; padding:0.95rem; border:none; border-radius:8px; font-family:'DM Mono',monospace; font-size:0.78rem; letter-spacing:0.15em; cursor:pointer; transition:all 0.2s; text-transform:uppercase; }
+  .btn-primary { background:var(--orange); color:#fff; box-shadow:0 4px 16px rgba(232,98,42,0.3); }
+  .btn-primary:hover { background:var(--orange-dark); transform:translateY(-1px); }
+  .btn-secondary { background:transparent; color:var(--muted); border:1.5px solid var(--border); margin-top:0.7rem; }
+  .btn-secondary:hover { border-color:var(--muted); color:var(--text); }
+
+  .toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%) translateY(100px); background:var(--orange); color:#fff; font-family:'DM Mono',monospace; font-size:0.78rem; letter-spacing:0.1em; padding:0.9rem 2rem; border-radius:8px; box-shadow:0 8px 24px rgba(232,98,42,0.35); transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); z-index:1000; white-space:nowrap; text-transform:uppercase; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+
+  /* MODE GRID */
+  .mode-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:0.6rem; }
+  .mode-btn { background:var(--bg2); border:1.5px solid var(--border); border-radius:8px; padding:0.75rem 0.5rem; text-align:center; cursor:pointer; transition:all 0.2s; font-family:'DM Sans',sans-serif; }
+  .mode-btn:hover { border-color:var(--orange-light); }
+  .mode-btn.active { background:var(--orange); border-color:var(--orange); color:#fff; box-shadow:0 3px 12px rgba(232,98,42,0.25); }
+  .mode-btn .mode-icon { font-size:1.3rem; display:block; margin-bottom:0.2rem; }
+  .mode-btn .mode-label { font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; display:block; color:var(--text); }
+  .mode-btn.active .mode-label { color:#fff; }
+  .mode-btn .mode-sub { font-size:0.7rem; color:var(--muted); display:block; margin-top:0.1rem; }
+  .mode-btn.active .mode-sub { color:rgba(255,255,255,0.75); }
+
+  /* PLAYER ROWS */
+  .player-row { display:grid; grid-template-columns:auto 1fr; gap:0.6rem; align-items:center; margin-bottom:0.7rem; }
+  .player-row:last-child { margin-bottom:0; }
+  .player-num { width:28px; height:28px; background:var(--orange); color:#fff; border-radius:50%; font-family:'DM Mono',monospace; font-size:0.7rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .team-block { background:var(--bg2); border:1.5px solid var(--border); border-radius:8px; padding:0.9rem; margin-bottom:0.8rem; }
+  .team-block:last-child { margin-bottom:0; }
+  .team-header { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem; }
+  .team-badge { background:var(--orange); color:#fff; font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:0.1em; padding:0.2rem 0.6rem; border-radius:3px; text-transform:uppercase; }
+  .team-badge.b { background:var(--dark); }
+  .score-row { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:0.6rem; margin-bottom:0.5rem; }
+  .score-row:last-child { margin-bottom:0; }
+  .score-row-label { font-family:'DM Mono',monospace; font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; }
+  .score-vs { text-align:center; font-family:'Playfair Display',serif; font-style:italic; color:var(--orange); font-size:0.9rem; }
+  .ffa-score-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; }
+
+  /* PLAYER SELECT */
+  .player-select-row { display:grid; grid-template-columns:auto 1fr auto; gap:0.5rem; align-items:center; margin-bottom:0.6rem; }
+  .player-select-row:last-child { margin-bottom:0; }
+  .add-player-btn { background:transparent; border:1.5px dashed var(--border); border-radius:8px; padding:0.6rem; color:var(--muted); font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.1em; cursor:pointer; width:100%; text-align:center; transition:all 0.2s; text-transform:uppercase; margin-top:0.5rem; }
+  .add-player-btn:hover { border-color:var(--orange); color:var(--orange); }
+  .remove-player-btn { background:transparent; border:none; color:var(--border); cursor:pointer; font-size:1.1rem; padding:0.2rem; transition:color 0.2s; line-height:1; }
+  .remove-player-btn:hover { color:#c02828; }
+
+  /* SESSION BANNER */
+  .session-chip:hover { background:rgba(232,98,42,0.3); }
+
+  /* LEADERBOARD */
+  .leaderboard-filter { display:flex; gap:0.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+  .filter-btn { background:var(--card); border:1.5px solid var(--border); color:var(--muted); font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; padding:0.4rem 1rem; border-radius:20px; cursor:pointer; transition:all 0.2s; }
+  .filter-btn.active,.filter-btn:hover { background:var(--orange); border-color:var(--orange); color:#fff; }
+  .score-entry { background:var(--card); border:1.5px solid var(--border); border-radius:10px; padding:1rem 1.1rem; margin-bottom:0.6rem; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:0.9rem; transition:all 0.2s; animation:slideIn 0.3s ease; }
+  .score-entry:hover { border-color:var(--orange-light); box-shadow:0 3px 12px rgba(232,98,42,0.08); }
+  .rank { font-family:'DM Mono',monospace; font-size:0.75rem; color:var(--muted); min-width:26px; text-align:center; }
+  .rank.gold,.rank.silver,.rank.bronze { font-size:1.1rem; }
+  .entry-match { font-weight:600; font-size:0.95rem; display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; color:var(--dark); }
+  .winner-tag { background:var(--orange); color:#fff; font-size:0.55rem; font-family:'DM Mono',monospace; letter-spacing:0.1em; padding:0.15rem 0.45rem; border-radius:3px; text-transform:uppercase; }
+  .entry-meta { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--muted); margin-top:0.2rem; }
+  .entry-score { font-family:'Playfair Display',serif; font-style:italic; font-size:1.4rem; font-weight:700; color:var(--orange); text-align:right; white-space:nowrap; }
+  .entry-score .sep { color:var(--border); font-size:1rem; }
+  .empty-state { text-align:center; padding:3rem 1rem; color:var(--muted); font-family:'DM Mono',monospace; font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase; }
+  .empty-state .big { font-size:2.5rem; display:block; margin-bottom:1rem; opacity:0.2; }
+  .clear-btn { background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.1em; padding:0.28rem 0.65rem; border-radius:4px; cursor:pointer; transition:all 0.2s; text-transform:uppercase; }
+  .clear-btn:hover { border-color:var(--orange); color:var(--orange); }
+
+  /* PLAYERS PAGE */
+  .player-card { background:var(--card); border:1.5px solid var(--border); border-radius:12px; padding:1.1rem 1.2rem; margin-bottom:0.8rem; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:1rem; animation:slideIn 0.3s ease; transition:all 0.2s; }
+  .player-card:hover { border-color:var(--orange-light); box-shadow:0 3px 12px rgba(232,98,42,0.08); }
+  .player-avatar { width:42px; height:42px; background:var(--dark); border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-style:italic; font-size:1.1rem; font-weight:900; color:var(--orange); flex-shrink:0; }
+  .player-name { font-weight:600; font-size:1rem; color:var(--dark); }
+  .player-stats { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--muted); margin-top:0.2rem; display:flex; gap:0.8rem; flex-wrap:wrap; }
+  .stat-pill { display:inline-flex; align-items:center; gap:0.25rem; }
+  .stat-pill span { color:var(--text); font-weight:500; }
+  .player-rank-badge { font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--orange); background:rgba(232,98,42,0.1); border:1px solid rgba(232,98,42,0.2); padding:0.3rem 0.7rem; border-radius:20px; white-space:nowrap; text-align:center; }
+  .player-rank-badge small { display:block; font-size:0.5rem; color:var(--muted); margin-top:0.1rem; }
+  .wl-bar { height:3px; background:var(--bg2); border-radius:2px; overflow:hidden; margin-top:0.4rem; width:100%; max-width:120px; }
+  .wl-fill { height:100%; background:var(--orange); border-radius:2px; transition:width 0.5s ease; }
+
+  /* RULES */
+  .rules-tabs { display:flex; gap:0.5rem; margin-bottom:1.5rem; }
+  .rules-tab { flex:1; padding:0.7rem; text-align:center; background:var(--card); border:1.5px solid var(--border); color:var(--muted); font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; transition:all 0.2s; border-radius:8px; }
+  .rules-tab.active { background:var(--orange); border-color:var(--orange); color:#fff; }
+  .rules-content { display:none; }
+  .rules-content.active { display:block; animation:fadeUp 0.3s ease; }
+  .game-variant { background:var(--card); border:1.5px solid var(--border); border-left:4px solid var(--orange); border-radius:10px; padding:1.3rem; margin-bottom:1rem; transition:box-shadow 0.2s; }
+  .game-variant:hover { box-shadow:0 4px 16px rgba(232,98,42,0.08); }
+  .variant-name { font-family:'Playfair Display',serif; font-style:italic; font-size:1.2rem; font-weight:700; color:var(--dark); margin-bottom:0.3rem; }
+  .variant-badge { display:inline-block; font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.1em; padding:0.15rem 0.55rem; border-radius:3px; text-transform:uppercase; margin-bottom:0.6rem; }
+  .badge-easy { background:rgba(80,180,100,0.12); color:#3a9a55; }
+  .badge-medium { background:rgba(232,98,42,0.12); color:var(--orange); }
+  .badge-hard { background:rgba(200,40,40,0.1); color:#c02828; }
+  .variant-desc { font-size:0.87rem; line-height:1.65; color:#5a4d3a; }
+  .variant-desc strong { color:var(--dark); }
+  .players-badge { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--muted); margin-top:0.6rem; display:block; }
+  .progress-row { display:flex; align-items:center; gap:0.6rem; margin-top:0.7rem; }
+  .progress-label { font-family:'DM Mono',monospace; font-size:0.55rem; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
+  .stat-bar { flex:1; height:3px; background:var(--bg2); border-radius:2px; overflow:hidden; }
+  .stat-fill { height:100%; border-radius:2px; background:var(--orange); }
+
+  /* TURN SYSTEM */
+  .scoreboard-grid { display:grid; gap:0.6rem; }
+  .sb-player { display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.8rem; border-radius:8px; background:rgba(255,255,255,0.05); }
+  .sb-player.leader { background:rgba(232,98,42,0.2); border:1px solid rgba(232,98,42,0.3); }
+  .sb-name { font-family:'DM Sans',sans-serif; font-weight:600; color:#fff; font-size:0.95rem; }
+  .sb-score { font-family:'Playfair Display',serif; font-style:italic; font-size:1.6rem; font-weight:900; color:var(--orange); line-height:1; }
+  .sb-wins { font-family:'DM Mono',monospace; font-size:0.55rem; color:#6b5f4e; letter-spacing:0.1em; margin-top:0.1rem; }
+  .turn-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; }
+  .turn-row:last-child { margin-bottom:0; }
+  .turn-label { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--muted); text-transform:uppercase; width:70px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .turn-input { flex:1; }
+  .history-item { display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0; border-bottom:1px solid var(--bg2); font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted); }
+  .history-item:last-child { border-bottom:none; }
+  .history-scores { color:var(--orange); font-weight:500; }
+  .winner-banner { text-align:center; padding:1.2rem; }
+  .winner-name { font-family:'Playfair Display',serif; font-style:italic; font-size:2rem; font-weight:900; color:var(--orange); }
+
+  @media (max-width:440px) {
+    .nav-btn { padding:0.8rem 0.6rem; font-size:0.56rem; }
+    .game-name { font-size:1.1rem; }
+    .mode-grid { grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-eyebrow">Club Cue · Oslo</span>
+  <div class="logo">Cue Scoreboard</div>
+  <div class="tagline" data-i18n="tagline">Track your game — Log your wins</div>
+  <div style="position:absolute;top:1rem;right:1rem;display:flex;border:1px solid rgba(255,255,255,0.15);border-radius:5px;overflow:hidden;">
+    <button id="lang-en" onclick="setLang('en')" style="background:rgba(255,255,255,0.12);border:none;color:#fff;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;padding:0.32rem 0.6rem;cursor:pointer;transition:all 0.2s;">EN</button>
+    <button id="lang-no" onclick="setLang('no')" style="background:transparent;border:none;border-left:1px solid rgba(255,255,255,0.15);color:#6b5f4e;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;padding:0.32rem 0.6rem;cursor:pointer;transition:all 0.2s;">NO</button>
+  </div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('submit',this)" data-i18n="nav_log">Log Score</button>
+  <button class="nav-btn" onclick="showPage('players',this)" data-i18n="nav_players">Players</button>
+  <button class="nav-btn" onclick="showPage('leaderboard',this)" data-i18n="nav_results">Results</button>
+  <button class="nav-btn" onclick="showPage('rules',this)" data-i18n="nav_rules">Rules</button>
+</nav>
+
+
+<!-- SUBMIT PAGE -->
+<div id="page-submit" class="page active">
+
+  <p class="section-title" data-i18n="choose_game">Choose your game</p>
+  <div class="game-cards">
+    <!-- DARTS CARD -->
+    <div class="game-card" id="card-darts" onclick="selectGame('darts')">
+      <!-- Dartboard SVG illustration -->
+      <svg class="card-svg" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+        <!-- dark bg -->
+        <rect width="300" height="400" fill="#1a0f06"/>
+        <!-- wood grain lines -->
+        <line x1="0" y1="60" x2="300" y2="80" stroke="#2a1a0a" stroke-width="18"/>
+        <line x1="0" y1="120" x2="300" y2="140" stroke="#251508" stroke-width="22"/>
+        <line x1="0" y1="200" x2="300" y2="210" stroke="#2a1a0a" stroke-width="16"/>
+        <line x1="0" y1="280" x2="300" y2="300" stroke="#1e1206" stroke-width="20"/>
+        <line x1="0" y1="350" x2="300" y2="360" stroke="#251508" stroke-width="14"/>
+        <!-- outer glow circle -->
+        <circle cx="150" cy="200" r="130" fill="none" stroke="rgba(232,98,42,0.15)" stroke-width="2"/>
+        <!-- dartboard rings from outside in -->
+        <!-- outer black ring -->
+        <circle cx="150" cy="200" r="120" fill="#1c1c1c"/>
+        <!-- double ring (thin, score ring) -->
+        <circle cx="150" cy="200" r="120" fill="none" stroke="#e8e8e8" stroke-width="1"/>
+        <!-- sectors - alternating black/cream, 20 segments -->
+        <!-- We'll draw wedge-shaped sectors using clip paths -->
+        <g id="board">
+          <!-- Black & cream alternating large segments -->
+          <!-- Using 18deg each = 20 segments -->
+          <!-- Segment 1 (top, 20) cream -->
+          <path d="M150,200 L150,80 A120,120 0 0,1 186.4,83.8 Z" fill="#f0ece0"/>
+          <path d="M150,200 L186.4,83.8 A120,120 0 0,1 219.6,98.8 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L219.6,98.8 A120,120 0 0,1 243.6,124 Z" fill="#f0ece0"/>
+          <path d="M150,200 L243.6,124 A120,120 0 0,1 255,158 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L255,158 A120,120 0 0,1 255,200 Z" fill="#f0ece0"/>
+          <path d="M150,200 L255,200 A120,120 0 0,1 243.6,236 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L243.6,236 A120,120 0 0,1 219.6,261 Z" fill="#f0ece0"/>
+          <path d="M150,200 L219.6,261 A120,120 0 0,1 186.4,276 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L186.4,276 A120,120 0 0,1 150,280 Z" fill="#f0ece0"/>
+          <path d="M150,200 L150,280 A120,120 0 0,1 113.6,276 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L113.6,276 A120,120 0 0,1 80.4,261 Z" fill="#f0ece0"/>
+          <path d="M150,200 L80.4,261 A120,120 0 0,1 56.4,236 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L56.4,236 A120,120 0 0,1 45,200 Z" fill="#f0ece0"/>
+          <path d="M150,200 L45,200 A120,120 0 0,1 56.4,164 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L56.4,164 A120,120 0 0,1 80.4,139 Z" fill="#f0ece0"/>
+          <path d="M150,200 L80.4,139 A120,120 0 0,1 113.6,124 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L113.6,124 A120,120 0 0,1 150,120 Z" fill="#f0ece0"/>
+          <path d="M150,200 L150,120 A120,120 0 0,1 186.4,124 Z" fill="#1c1c1c"/>
+
+          <!-- Score ring (double) - thin outer ring red/green -->
+          <path d="M150,200 L150,80 A120,120 0 0,1 186.4,83.8 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L186.4,83.8 A120,120 0 0,1 219.6,98.8 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L219.6,98.8 A120,120 0 0,1 243.6,124 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L243.6,124 A120,120 0 0,1 255,158 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L255,158 A120,120 0 0,1 255,200 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L255,200 A120,120 0 0,1 243.6,236 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L243.6,236 A120,120 0 0,1 219.6,261 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L219.6,261 A120,120 0 0,1 186.4,276 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L186.4,276 A120,120 0 0,1 150,280 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L150,280 A120,120 0 0,1 113.6,276 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L113.6,276 A120,120 0 0,1 80.4,261 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L80.4,261 A120,120 0 0,1 56.4,236 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L56.4,236 A120,120 0 0,1 45,200 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L45,200 A120,120 0 0,1 56.4,164 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L56.4,164 A120,120 0 0,1 80.4,139 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L80.4,139 A120,120 0 0,1 113.6,124 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L113.6,124 A120,120 0 0,1 150,120 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#doubleRing)"/>
+          <path d="M150,200 L150,120 A120,120 0 0,1 186.4,124 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#doubleRing)"/>
+
+          <!-- Triple ring (middle thin ring) -->
+          <path d="M150,200 L150,80 A120,120 0 0,1 186.4,83.8 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L186.4,83.8 A120,120 0 0,1 219.6,98.8 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L219.6,98.8 A120,120 0 0,1 243.6,124 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L243.6,124 A120,120 0 0,1 255,158 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L255,158 A120,120 0 0,1 255,200 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L255,200 A120,120 0 0,1 243.6,236 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L243.6,236 A120,120 0 0,1 219.6,261 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L219.6,261 A120,120 0 0,1 186.4,276 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L186.4,276 A120,120 0 0,1 150,280 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L150,280 A120,120 0 0,1 113.6,276 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L113.6,276 A120,120 0 0,1 80.4,261 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L80.4,261 A120,120 0 0,1 56.4,236 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L56.4,236 A120,120 0 0,1 45,200 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L45,200 A120,120 0 0,1 56.4,164 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L56.4,164 A120,120 0 0,1 80.4,139 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L80.4,139 A120,120 0 0,1 113.6,124 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L113.6,124 A120,120 0 0,1 150,120 Z" fill="#d42b2b" opacity="0.85" clip-path="url(#tripleRing)"/>
+          <path d="M150,200 L150,120 A120,120 0 0,1 186.4,124 Z" fill="#1a8c3a" opacity="0.85" clip-path="url(#tripleRing)"/>
+
+          <defs>
+            <clipPath id="doubleRing">
+              <path d="M150,200 m0,-120 a120,120 0 1,1 0,240 a120,120 0 1,1 0,-240 M150,200 m0,-108 a108,108 0 0,0 0,216 a108,108 0 0,0 0,-216"/>
+            </clipPath>
+            <clipPath id="tripleRing">
+              <path d="M150,200 m0,-78 a78,78 0 1,1 0,156 a78,78 0 1,1 0,-156 M150,200 m0,-66 a66,66 0 0,0 0,132 a66,66 0 0,0 0,-132"/>
+            </clipPath>
+          </defs>
+
+          <!-- Inner black ring (between triple and bull) -->
+          <circle cx="150" cy="200" r="50" fill="#f0ece0"/>
+          <!-- colour segments on inner -->
+          <path d="M150,200 L150,150 A50,50 0 0,1 193.3,175 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L193.3,175 A50,50 0 0,1 193.3,225 Z" fill="#f0ece0"/>
+          <path d="M150,200 L193.3,225 A50,50 0 0,1 150,250 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L150,250 A50,50 0 0,1 106.7,225 Z" fill="#f0ece0"/>
+          <path d="M150,200 L106.7,225 A50,50 0 0,1 106.7,175 Z" fill="#1c1c1c"/>
+          <path d="M150,200 L106.7,175 A50,50 0 0,1 150,150 Z" fill="#f0ece0"/>
+
+          <!-- Bull outer (25) -->
+          <circle cx="150" cy="200" r="18" fill="#1a8c3a"/>
+          <!-- Bull inner (50) -->
+          <circle cx="150" cy="200" r="9" fill="#d42b2b"/>
+          <!-- Bull highlight -->
+          <circle cx="146" cy="196" r="3" fill="rgba(255,255,255,0.3)"/>
+
+          <!-- Wire dividers (thin lines from center) -->
+          <line x1="150" y1="80" x2="150" y2="120" stroke="#888" stroke-width="0.8"/>
+          <line x1="186.4" y1="83.8" x2="175.5" y2="120.8" stroke="#888" stroke-width="0.8"/>
+          <line x1="219.6" y1="98.8" x2="202.5" y2="131.5" stroke="#888" stroke-width="0.8"/>
+          <line x1="243.6" y1="124" x2="221.5" y2="150" stroke="#888" stroke-width="0.8"/>
+          <line x1="255" y1="158" x2="231" y2="170" stroke="#888" stroke-width="0.8"/>
+          <line x1="255" y1="200" x2="228" y2="200" stroke="#888" stroke-width="0.8"/>
+          <line x1="243.6" y1="236" x2="221.5" y2="222" stroke="#888" stroke-width="0.8"/>
+          <line x1="219.6" y1="261" x2="202.5" y2="243" stroke="#888" stroke-width="0.8"/>
+          <line x1="186.4" y1="276" x2="175.5" y2="257" stroke="#888" stroke-width="0.8"/>
+          <line x1="150" y1="280" x2="150" y2="258" stroke="#888" stroke-width="0.8"/>
+          <line x1="113.6" y1="276" x2="124.5" y2="257" stroke="#888" stroke-width="0.8"/>
+          <line x1="80.4" y1="261" x2="97.5" y2="243" stroke="#888" stroke-width="0.8"/>
+          <line x1="56.4" y1="236" x2="78.5" y2="222" stroke="#888" stroke-width="0.8"/>
+          <line x1="45" y1="200" x2="72" y2="200" stroke="#888" stroke-width="0.8"/>
+          <line x1="56.4" y1="164" x2="79" y2="176" stroke="#888" stroke-width="0.8"/>
+          <line x1="80.4" y1="139" x2="97.5" y2="157" stroke="#888" stroke-width="0.8"/>
+          <line x1="113.6" y1="124" x2="124.5" y2="142" stroke="#888" stroke-width="0.8"/>
+
+          <!-- ring borders -->
+          <circle cx="150" cy="200" r="120" fill="none" stroke="#666" stroke-width="0.8"/>
+          <circle cx="150" cy="200" r="108" fill="none" stroke="#555" stroke-width="0.6"/>
+          <circle cx="150" cy="200" r="78" fill="none" stroke="#555" stroke-width="0.6"/>
+          <circle cx="150" cy="200" r="66" fill="none" stroke="#555" stroke-width="0.6"/>
+          <circle cx="150" cy="200" r="50" fill="none" stroke="#555" stroke-width="0.5"/>
+          <circle cx="150" cy="200" r="18" fill="none" stroke="#555" stroke-width="0.5"/>
+
+          <!-- Number labels -->
+          <text x="150" y="74" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">20</text>
+          <text x="192" y="88" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">1</text>
+          <text x="228" y="112" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">18</text>
+          <text x="253" y="148" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">4</text>
+          <text x="260" y="190" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">13</text>
+          <text x="253" y="230" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">6</text>
+          <text x="228" y="262" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">10</text>
+          <text x="192" y="286" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">15</text>
+          <text x="150" y="298" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">2</text>
+          <text x="110" y="286" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">17</text>
+          <text x="76" y="262" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">3</text>
+          <text x="50" y="230" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">19</text>
+          <text x="42" y="190" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">7</text>
+          <text x="50" y="152" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">16</text>
+          <text x="74" y="118" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">8</text>
+          <text x="110" y="94" text-anchor="middle" fill="#f0ece0" font-size="10" font-family="Arial" font-weight="bold">11</text>
+
+          <!-- 3 darts sticking in board -->
+          <!-- Dart 1 - bullseye area -->
+          <g transform="translate(153,165) rotate(12)">
+            <rect x="-1" y="0" width="2" height="32" fill="#c0c0c0"/>
+            <polygon points="0,32 -2,24 2,24" fill="#e8c840"/>
+            <rect x="-3" y="0" width="6" height="8" rx="1" fill="#e8622a"/>
+          </g>
+          <!-- Dart 2 - triple 20 area -->
+          <g transform="translate(148,105) rotate(-8)">
+            <rect x="-1" y="0" width="2" height="28" fill="#c0c0c0"/>
+            <polygon points="0,28 -2,21 2,21" fill="#e8c840"/>
+            <rect x="-3" y="0" width="6" height="7" rx="1" fill="#2a5caa"/>
+          </g>
+          <!-- Dart 3 - inner single area -->
+          <g transform="translate(175,185) rotate(20)">
+            <rect x="-1" y="0" width="2" height="30" fill="#b8b8b8"/>
+            <polygon points="0,30 -2,23 2,23" fill="#e8c840"/>
+            <rect x="-3" y="0" width="6" height="7" rx="1" fill="#1a8c3a"/>
+          </g>
+        </g>
+
+        <!-- subtle vignette -->
+        <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(0,0,0,0.6)"/>
+        </radialGradient>
+        <rect width="300" height="400" fill="url(#vignette)"/>
+      </svg>
+      <div class="card-overlay"></div>
+      <div class="card-sticker" data-i18n="tap_select">Tap to select</div>
+      <div class="card-label">
+        <div class="game-name">Darts</div>
+        <div class="card-sub" data-i18n="variants_4">4 variants available</div>
+      </div>
+    </div>
+
+    <!-- PING PONG CARD -->
+    <div class="game-card" id="card-pong" onclick="selectGame('pong')">
+      <svg class="card-svg" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+        <!-- background - table view from above -->
+        <rect width="300" height="400" fill="#1e4a2a"/>
+        <!-- table surface pattern -->
+        <rect x="20" y="60" width="260" height="280" rx="6" fill="#2a6438"/>
+        <!-- table lines -->
+        <line x1="20" y1="200" x2="280" y2="200" stroke="white" stroke-width="2.5" opacity="0.9"/>
+        <line x1="150" y1="60" x2="150" y2="340" stroke="white" stroke-width="1.5" opacity="0.9"/>
+        <!-- end lines -->
+        <line x1="20" y1="68" x2="280" y2="68" stroke="white" stroke-width="2" opacity="0.9"/>
+        <line x1="20" y1="332" x2="280" y2="332" stroke="white" stroke-width="2" opacity="0.9"/>
+        <!-- side lines -->
+        <line x1="28" y1="60" x2="28" y2="340" stroke="white" stroke-width="2" opacity="0.9"/>
+        <line x1="272" y1="60" x2="272" y2="340" stroke="white" stroke-width="2" opacity="0.9"/>
+        <!-- net (center) -->
+        <rect x="14" y="193" width="272" height="14" rx="3" fill="#e0d8c8" opacity="0.9"/>
+        <line x1="150" y1="193" x2="150" y2="207" stroke="#b0a888" stroke-width="1"/>
+        <!-- net posts -->
+        <rect x="12" y="188" width="10" height="24" rx="2" fill="#888"/>
+        <rect x="278" y="188" width="10" height="24" rx="2" fill="#888"/>
+
+        <!-- table shadow edges -->
+        <rect x="20" y="60" width="260" height="280" rx="6" fill="none" stroke="#1a3020" stroke-width="4"/>
+
+        <!-- Paddle 1 - top left, red -->
+        <g transform="translate(72,130) rotate(-35)">
+          <!-- handle -->
+          <rect x="-5" y="38" width="10" height="30" rx="4" fill="#8B4513"/>
+          <line x1="-5" y1="38" x2="-5" y2="68" stroke="#6B3410" stroke-width="1"/>
+          <!-- blade -->
+          <ellipse cx="0" cy="18" rx="22" ry="26" fill="#cc2b2b"/>
+          <!-- rubber dots -->
+          <ellipse cx="0" cy="18" rx="20" ry="24" fill="none" stroke="#aa2020" stroke-width="1" stroke-dasharray="2,2"/>
+          <circle cx="0" cy="18" r="3" fill="#aa2020" opacity="0.5"/>
+          <!-- gloss -->
+          <ellipse cx="-6" cy="8" rx="7" ry="5" fill="rgba(255,255,255,0.18)" transform="rotate(-20,-6,8)"/>
+        </g>
+
+        <!-- Paddle 2 - bottom right, black/red -->
+        <g transform="translate(228,280) rotate(145)">
+          <rect x="-5" y="38" width="10" height="30" rx="4" fill="#5a3010"/>
+          <line x1="-5" y1="38" x2="-5" y2="68" stroke="#3a2008" stroke-width="1"/>
+          <ellipse cx="0" cy="18" rx="22" ry="26" fill="#1a1a1a"/>
+          <ellipse cx="0" cy="18" rx="20" ry="24" fill="none" stroke="#333" stroke-width="1" stroke-dasharray="2,2"/>
+          <ellipse cx="0" cy="18" rx="22" ry="26" fill="none" stroke="#cc2b2b" stroke-width="3"/>
+          <circle cx="0" cy="18" r="3" fill="#333" opacity="0.5"/>
+          <ellipse cx="-6" cy="8" rx="7" ry="5" fill="rgba(255,255,255,0.12)" transform="rotate(-20,-6,8)"/>
+        </g>
+
+        <!-- Ball with motion blur -->
+        <!-- shadow -->
+        <ellipse cx="168" cy="178" rx="10" ry="5" fill="rgba(0,0,0,0.4)" transform="rotate(-10,168,178)"/>
+        <!-- motion trail -->
+        <circle cx="148" cy="176" r="6" fill="white" opacity="0.08"/>
+        <circle cx="155" cy="174" r="7" fill="white" opacity="0.12"/>
+        <circle cx="162" cy="172" r="8" fill="white" opacity="0.2"/>
+        <!-- ball -->
+        <circle cx="170" cy="170" r="11" fill="white"/>
+        <circle cx="165" cy="165" r="4" fill="rgba(255,255,255,0.5)"/>
+        <path d="M163,162 Q170,168 177,163" fill="none" stroke="rgba(200,200,200,0.6)" stroke-width="1.5"/>
+
+        <!-- score display suggestion -->
+        <rect x="60" y="355" width="60" height="28" rx="6" fill="rgba(0,0,0,0.45)"/>
+        <text x="90" y="374" text-anchor="middle" fill="white" font-size="14" font-family="Arial" font-weight="bold">11</text>
+        <rect x="180" y="355" width="60" height="28" rx="6" fill="rgba(0,0,0,0.45)"/>
+        <text x="210" y="374" text-anchor="middle" fill="white" font-size="14" font-family="Arial" font-weight="bold">8</text>
+        <text x="150" y="374" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="11" font-family="Arial">:</text>
+
+        <!-- vignette -->
+        <radialGradient id="vignette2" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(0,0,0,0.55)"/>
+        </radialGradient>
+        <rect width="300" height="400" fill="url(#vignette2)"/>
+      </svg>
+      <div class="card-overlay"></div>
+      <div class="card-sticker" data-i18n="tap_select">Tap to select</div>
+      <div class="card-label">
+        <div class="game-name">Ping Pong</div>
+        <div class="card-sub" data-i18n="variants_4">4 variants available</div>
+      </div>
+    </div>
+
+    <!-- POOL CARD -->
+    <div class="game-card" id="card-pool" onclick="selectGame('pool')">
+      <svg class="card-svg" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+        <!-- felt background -->
+        <rect width="300" height="400" fill="#1a3a1a"/>
+        <!-- table felt -->
+        <rect x="18" y="50" width="264" height="300" rx="8" fill="#1e6b2e"/>
+        <!-- cushion border -->
+        <rect x="18" y="50" width="264" height="300" rx="8" fill="none" stroke="#3a8a40" stroke-width="10"/>
+        <rect x="23" y="55" width="254" height="290" rx="5" fill="none" stroke="#145520" stroke-width="3"/>
+        <!-- pockets - 6 circles -->
+        <circle cx="30" cy="62" r="11" fill="#0a0a0a"/><circle cx="30" cy="62" r="8" fill="#111"/>
+        <circle cx="270" cy="62" r="11" fill="#0a0a0a"/><circle cx="270" cy="62" r="8" fill="#111"/>
+        <circle cx="30" cy="338" r="11" fill="#0a0a0a"/><circle cx="30" cy="338" r="8" fill="#111"/>
+        <circle cx="270" cy="338" r="11" fill="#0a0a0a"/><circle cx="270" cy="338" r="8" fill="#111"/>
+        <circle cx="150" cy="55" r="10" fill="#0a0a0a"/><circle cx="150" cy="55" r="7" fill="#111"/>
+        <circle cx="150" cy="345" r="10" fill="#0a0a0a"/><circle cx="150" cy="345" r="7" fill="#111"/>
+        <!-- center spot -->
+        <circle cx="150" cy="200" r="3" fill="rgba(255,255,255,0.25)"/>
+        <!-- baulk line -->
+        <line x1="40" y1="270" x2="260" y2="270" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+        <circle cx="150" cy="270" r="18" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+
+        <!-- Pool balls triangle rack -->
+        <!-- row 1 -->
+        <circle cx="150" cy="145" r="13" fill="#f5f0e0"/><text x="150" y="150" text-anchor="middle" fill="#1a1a1a" font-size="10" font-family="Arial" font-weight="bold">1</text>
+        <!-- row 2 -->
+        <circle cx="137" cy="167" r="13" fill="#1a1a8a"/><text x="137" y="172" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">2</text>
+        <circle cx="163" cy="167" r="13" fill="#cc2222"/><text x="163" y="172" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">3</text>
+        <!-- row 3 -->
+        <circle cx="124" cy="189" r="13" fill="#dd6600"/><text x="124" y="194" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">5</text>
+        <circle cx="150" cy="189" r="13" fill="#1a1a1a"/><text x="150" y="194" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">8</text>
+        <circle cx="176" cy="189" r="13" fill="#116611"/><text x="176" y="194" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">6</text>
+        <!-- row 4 -->
+        <circle cx="111" cy="211" r="13" fill="#991199"/><text x="111" y="216" text-anchor="middle" fill="white" font-size="9" font-family="Arial" font-weight="bold">4</text>
+        <circle cx="137" cy="211" r="13" fill="#883300"/><text x="137" y="216" text-anchor="middle" fill="white" font-size="9" font-family="Arial" font-weight="bold">7</text>
+        <circle cx="163" cy="211" r="13" fill="#e8e800" stroke="#aaa" stroke-width="0.5"/><text x="163" y="216" text-anchor="middle" fill="#333" font-size="9" font-family="Arial" font-weight="bold">9</text>
+        <circle cx="189" cy="211" r="13" fill="#dddddd" stroke="#aaa" stroke-width="0.5"/>
+        <!-- row 5 -->
+        <circle cx="98" cy="233" r="13" fill="#f5f0e0" stroke="#999" stroke-width="0.5"/><text x="98" y="238" text-anchor="middle" fill="#1a1a1a" font-size="8" font-family="Arial" font-weight="bold">10</text>
+        <circle cx="124" cy="233" r="13" fill="#1a1a8a"/><text x="124" y="238" text-anchor="middle" fill="white" font-size="8" font-family="Arial" font-weight="bold">11</text>
+        <circle cx="150" cy="233" r="13" fill="#cc2222"/><text x="150" y="238" text-anchor="middle" fill="white" font-size="8" font-family="Arial" font-weight="bold">12</text>
+        <circle cx="176" cy="233" r="13" fill="#dd6600"/><text x="176" y="238" text-anchor="middle" fill="white" font-size="8" font-family="Arial" font-weight="bold">13</text>
+        <circle cx="202" cy="233" r="13" fill="#116611"/><text x="202" y="238" text-anchor="middle" fill="white" font-size="8" font-family="Arial" font-weight="bold">14</text>
+
+        <!-- Cue ball -->
+        <circle cx="150" cy="310" r="14" fill="white" stroke="#ddd" stroke-width="1"/>
+        <circle cx="145" cy="305" r="4" fill="rgba(255,255,255,0.6)"/>
+
+        <!-- Cue stick -->
+        <line x1="80" y1="360" x2="155" y2="298" stroke="#c8a060" stroke-width="5" stroke-linecap="round"/>
+        <line x1="80" y1="360" x2="155" y2="298" stroke="#e8c080" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+        <rect x="73" y="354" width="14" height="8" rx="3" fill="#5a3010" transform="rotate(-38,80,358)"/>
+
+        <!-- vignette -->
+        <radialGradient id="vignette3" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(0,0,0,0.5)"/>
+        </radialGradient>
+        <rect width="300" height="400" fill="url(#vignette3)"/>
+      </svg>
+      <div class="card-overlay"></div>
+      <div class="card-sticker" data-i18n="tap_select">Tap to select</div>
+      <div class="card-label">
+        <div class="game-name">Pool</div>
+        <div class="card-sub" data-i18n="variants_4">4 variants available</div>
+      </div>
+    </div>
+
+    <!-- SHUFFLEBOARD CARD -->
+    <div class="game-card" id="card-shuffleboard" style="cursor:not-allowed;opacity:0.9">
+      <svg class="card-svg" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+        <!-- dark wood bg -->
+        <rect width="300" height="400" fill="#2a1a08"/>
+        <line x1="0" y1="0" x2="300" y2="400" stroke="#3a2510" stroke-width="30" opacity="0.5"/>
+        <line x1="60" y1="0" x2="300" y2="280" stroke="#1e1208" stroke-width="20" opacity="0.4"/>
+        <line x1="0" y1="100" x2="200" y2="400" stroke="#3a2510" stroke-width="25" opacity="0.3"/>
+        <!-- board surface - long vertical lane -->
+        <rect x="80" y="20" width="140" height="360" rx="6" fill="#c8a84a"/>
+        <!-- wood grain on board -->
+        <rect x="80" y="20" width="140" height="360" rx="6" fill="url(#woodGrain)"/>
+        <defs>
+          <linearGradient id="woodGrain" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="rgba(0,0,0,0.15)"/>
+            <stop offset="30%" stop-color="rgba(255,255,255,0.08)"/>
+            <stop offset="60%" stop-color="rgba(0,0,0,0.1)"/>
+            <stop offset="100%" stop-color="rgba(255,255,255,0.05)"/>
+          </linearGradient>
+        </defs>
+        <!-- board border -->
+        <rect x="80" y="20" width="140" height="360" rx="6" fill="none" stroke="#8a6820" stroke-width="3"/>
+        <!-- scoring zones from top -->
+        <!-- Zone 10 (top, narrow) -->
+        <rect x="82" y="22" width="136" height="55" rx="5" fill="#d42b2b" opacity="0.75"/>
+        <text x="150" y="56" text-anchor="middle" fill="white" font-size="20" font-family="Arial" font-weight="bold">10</text>
+        <!-- Zone 8 -->
+        <rect x="82" y="82" width="136" height="60" fill="#e8a020" opacity="0.75"/>
+        <text x="150" y="118" text-anchor="middle" fill="white" font-size="20" font-family="Arial" font-weight="bold">8</text>
+        <!-- Zone 7 -->
+        <rect x="82" y="147" width="136" height="60" fill="#2288cc" opacity="0.75"/>
+        <text x="150" y="183" text-anchor="middle" fill="white" font-size="20" font-family="Arial" font-weight="bold">7</text>
+        <!-- Zone -10 (penalty) -->
+        <rect x="82" y="212" width="136" height="50" fill="#333" opacity="0.75"/>
+        <text x="150" y="243" text-anchor="middle" fill="#ff6666" font-size="16" font-family="Arial" font-weight="bold">-10</text>
+        <!-- shooting zone (bottom) -->
+        <rect x="82" y="267" width="136" height="110" rx="0" fill="#b89030" opacity="0.6"/>
+        <!-- lane divider lines -->
+        <line x1="80" y1="82" x2="220" y2="82" stroke="#8a6820" stroke-width="2"/>
+        <line x1="80" y1="147" x2="220" y2="147" stroke="#8a6820" stroke-width="2"/>
+        <line x1="80" y1="212" x2="220" y2="212" stroke="#8a6820" stroke-width="2"/>
+        <line x1="80" y1="267" x2="220" y2="267" stroke="#8a6820" stroke-width="2"/>
+        <!-- center lane line -->
+        <line x1="150" y1="22" x2="150" y2="377" stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="6,4"/>
+
+        <!-- Pucks - yellow team -->
+        <circle cx="128" cy="310" r="14" fill="#e8d820" stroke="#b8a810" stroke-width="2"/>
+        <circle cx="128" cy="310" r="8" fill="rgba(255,255,255,0.2)"/>
+        <circle cx="172" cy="295" r="14" fill="#e8d820" stroke="#b8a810" stroke-width="2"/>
+        <circle cx="172" cy="295" r="8" fill="rgba(255,255,255,0.2)"/>
+        <!-- red team pucks in scoring zone -->
+        <circle cx="135" cy="100" r="14" fill="#cc2222" stroke="#882222" stroke-width="2"/>
+        <circle cx="135" cy="100" r="8" fill="rgba(255,255,255,0.2)"/>
+        <circle cx="168" cy="115" r="14" fill="#cc2222" stroke="#882222" stroke-width="2"/>
+        <circle cx="168" cy="115" r="8" fill="rgba(255,255,255,0.2)"/>
+
+        <!-- vignette -->
+        <radialGradient id="vignette4" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="transparent"/>
+          <stop offset="100%" stop-color="rgba(0,0,0,0.6)"/>
+        </radialGradient>
+        <rect width="300" height="400" fill="url(#vignette4)"/>
+      </svg>
+      <div class="card-overlay"></div>
+      <!-- Coming Soon overlay — semi-transparent so SVG shows through -->
+      <div style="position:absolute;inset:0;background:rgba(20,10,3,0.55);z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;pointer-events:none;">
+        <div style="font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.3em;color:rgba(255,255,255,0.5);text-transform:uppercase;">— soon —</div>
+        <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:1.5rem;font-weight:900;color:#fff;text-shadow:0 2px 16px rgba(0,0,0,0.5);">Coming<br>Soon</div>
+        <div style="width:32px;height:2px;background:var(--orange);border-radius:1px;margin-top:0.2rem;"></div>
+      </div>
+      <div class="card-label">
+        <div class="game-name">Shuffleboard</div>
+        <div class="card-sub" data-i18n="variants_3">3 variants available</div>
+      </div>
+    </div>
+
+  </div><!-- end game-cards -->
+
+  <!-- STEP 1: variant + mode + players -->
+  <div id="submit-form" style="display:none">
+    <div class="form-card">
+      <p class="section-title" data-i18n="variant_title">Game variant</p>
+      <div class="form-group" style="margin-bottom:0">
+        <label data-i18n="select_variant">Select variant</label>
+        <select id="variant-select"></select>
+      </div>
+    </div>
+    <div class="form-card">
+      <p class="section-title" data-i18n="format_title">Format</p>
+      <div class="mode-grid" id="mode-grid"></div>
+    </div>
+    <div id="players-section" style="display:none">
+      <div class="form-card">
+        <p class="section-title" id="players-section-title">Players</p>
+        <div id="players-inputs"></div>
+      </div>
+      <button class="btn btn-primary" onclick="startGame()">Start game →</button>
+    </div>
+    <button class="btn btn-secondary" onclick="resetForm()">↩ Change game</button>
+  </div>
+
+  <!-- STEP 2: active game with turns -->
+  <div id="game-active" style="display:none">
+
+    <!-- Scoreboard header -->
+    <div class="form-card" style="background:var(--dark);border-color:var(--dark)">
+      <div id="game-scoreboard"></div>
+      <div id="game-status" style="text-align:center;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.15em;color:#6b5f4e;text-transform:uppercase;margin-top:0.8rem;"></div>
+    </div>
+
+    <!-- Add turn -->
+    <div class="form-card">
+      <p class="section-title" id="turn-title">Round score</p>
+      <div id="turn-inputs"></div>
+      <button class="btn btn-primary" onclick="addTurn()" style="margin-top:1rem" id="add-turn-btn">+ Add round</button>
+    </div>
+
+    <!-- Turn history -->
+    <div id="turn-history-wrap" style="display:none">
+      <div class="form-card" style="padding:0.8rem 1rem">
+        <p class="section-title" style="margin-bottom:0.6rem">History</p>
+        <div id="turn-history"></div>
+      </div>
+    </div>
+
+    <!-- End game -->
+    <button class="btn btn-primary" onclick="endGame()" style="background:var(--orange-dark)" id="end-game-btn">🏆 End game</button>
+    <button class="btn btn-secondary" onclick="abandonGame()">↩ Cancel game</button>
+  </div>
+</div>
+
+<!-- PLAYERS PAGE -->
+<div id="page-players" class="page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+    <p class="section-title" style="margin-bottom:0;flex:1" data-i18n="session_players">Session Players</p>
+    <button class="clear-btn" onclick="session={}; renderPlayersPage(); showToast('Players cleared');">Clear all</button>
+  </div>
+  <div id="no-players-state" class="empty-state">
+    <span class="big">👥</span>
+    <span data-i18n="no_players_yet">No players yet</span><br>
+    <span style="font-size:0.6rem;opacity:0.6" data-i18n="log_first">Log a game first to start tracking</span>
+  </div>
+  <div id="players-list"></div>
+</div>
+
+<!-- LEADERBOARD -->
+<div id="page-leaderboard" class="page">
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;">
+    <span class="section-title" style="margin-bottom:0;flex:1" data-i18n="recent_results">Recent Results</span>
+    <button class="clear-btn" onclick="clearScores()" data-i18n="clear_all">Clear all</button>
+  </div>
+  <div class="leaderboard-filter">
+    <button class="filter-btn active" onclick="filterScores('all',this)" data-i18n="all_games">All games</button>
+    <button class="filter-btn" onclick="filterScores('darts',this)">Darts</button>
+    <button class="filter-btn" onclick="filterScores('pong',this)">Ping Pong</button>
+    <button class="filter-btn" onclick="filterScores('pool',this)">Pool</button>
+    <button class="filter-btn" onclick="filterScores('shuffleboard',this)">Shuffleboard</button>
+  </div>
+  <div id="scores-list"></div>
+</div>
+
+<!-- RULES -->
+<div id="page-rules" class="page">
+  <div class="rules-tabs">
+    <button class="rules-tab active" onclick="showRules('darts-rules',this)">Darts</button>
+    <button class="rules-tab" onclick="showRules('pong-rules',this)">Ping Pong</button>
+    <button class="rules-tab" onclick="showRules('pool-rules',this)">Pool</button>
+    <button class="rules-tab" onclick="showRules('shuffle-rules',this)">Shuffle</button>
+  </div>
+  <div id="darts-rules" class="rules-content active"></div>
+  <div id="pong-rules" class="rules-content"></div>
+  <div id="pool-rules" class="rules-content"></div>
+  <div id="shuffle-rules" class="rules-content"></div>
+</div>
+
+<div id="toast" class="toast">Score saved!</div>
+
+<script>
+// ── LANGUAGE ─────────────────────────────────────────────────────
+let lang = localStorage.getItem('cue_lang') || 'en';
+
+const T = {
+  en: {
+    tagline:'Track your game — Log your wins',
+    nav_log:'Log', nav_players:'Players', nav_results:'Results', nav_rules:'Rules',
+    choose_game:'Choose your game',
+    tap_select:'Tap to select',
+    variants_4:'4 variants available', variants_3:'3 variants available',
+    variant_title:'Game variant', select_variant:'Select variant',
+    format_title:'Format', players_title:'Players', scores_title:'Scores',
+    save_btn:'Save Result →', change_game:'↩ Change game',
+    recent_results:'Recent Results', clear_all:'Clear all', all_games:'All games',
+    win:'WIN', draw:'Draw',
+    toast_saved:'Score saved!', toast_draw:'Draw!',
+    empty_play:'No results yet\nBe the first to play',
+    team:'Team', player:'Player', fun_level:'Fun level',
+    session_label:'Active players', new_session:'New session',
+    session_players:'Session Players', no_players_yet:'No players yet',
+    log_first:'Log a game first to start tracking',
+    add_player:'+ Add player',
+    wins:'W', losses:'L', games:'G', win_rate:'Win rate',
+    fav_game:'Fav game', no_games:'No games yet',
+    m_1v1:'1 vs 1', m_1v1s:'2 players',
+    m_2v2:'2 vs 2', m_2v2s:'4 players, 2 teams',
+    m_3v3:'3 vs 3', m_3v3s:'6 players, 2 teams',
+    m_ffa3:'FFA — 3', m_ffa3s:'3 players free-for-all',
+    m_ffa4:'FFA — 4', m_ffa4s:'4 players free-for-all',
+    m_ffa5:'FFA — 5', m_ffa5s:'5 players free-for-all',
+    m_ffa6:'FFA — 6', m_ffa6s:'6 players free-for-all',
+    m_teams:'Teams', m_teamss:'Custom team names',
+    darts_v:['501','301','Cricket','Shanghai','Halve It','Count Up','Legs','Around the Clock','Killer'],
+    pong_v:['Classic (11 pts)','Around the Table','Speed Pong (21 pts)','King of the Table'],
+    pool_v:['8-Ball','9-Ball','Straight Pool','Cut-throat'],
+    shuffle_v:['Classic (15 pts)','Knock Off','Horse Collar'],
+    rules:{
+      darts:[
+        {name:'501',badge:'Most popular',badgeClass:'badge-medium',desc:'Start at <strong>501</strong> and count down to exactly zero. Finish on a <strong>double or bullseye</strong>. Go below zero = bust, turn ends and score resets.',players:'2–4 players · First to reach 0 wins',fun:90},
+        {name:'301',badge:'Quick version',badgeClass:'badge-easy',desc:'Same as 501 but starting at <strong>301</strong>. Faster rounds, great for when you want a quicker game. Finish on a <strong>double or bullseye</strong>.',players:'2–4 players · First to reach 0 wins',fun:80},
+        {name:'Cricket',badge:'Strategic',badgeClass:'badge-hard',desc:'Close numbers <strong>15–20 and bullseye</strong> by hitting each three times. Once closed you score points on that number until the opponent closes it too. Close all numbers with equal or more points to win.',players:'2–4 players · Close all numbers first',fun:85},
+        {name:'Shanghai',badge:'Instant win',badgeClass:'badge-hard',desc:'Each round targets one number (1 in round 1, 2 in round 2…). Hit a <strong>single, double and triple</strong> of that number in one turn = instant win (Shanghai!). Otherwise score points on target number only.',players:'2–8 players · Can end any round',fun:88},
+        {name:'Halve It',badge:'High stakes',badgeClass:'badge-medium',desc:'Agree on a list of targets (e.g. 20, 19, 18, bull, double, triple). Each round you must hit the target — <strong>miss = your score is halved</strong>. Highest score after all targets wins.',players:'2–8 players · High tension',fun:85},
+        {name:'Count Up',badge:'Beginner',badgeClass:'badge-easy',desc:'Throw 3 darts and <strong>add up your score</strong> each round. No special rules — just pure scoring. Play for a set number of rounds, highest total wins. Great for beginners.',players:'2–8 players · Any skill level',fun:55},
+        {name:'Legs',badge:'Pressure',badgeClass:'badge-medium',desc:'Each player starts with <strong>3 legs</strong>. After each round, the lowest-scoring player loses a leg. Lose all 3 legs = eliminated. Last player standing wins.',players:'3–8 players · Elimination',fun:80},
+        {name:'Around the Clock',badge:'Classic',badgeClass:'badge-easy',desc:'Hit every number in sequence — <strong>1 to 20</strong>, then bullseye. You must hit a number before advancing. First to complete the full sequence wins.',players:'2–6 players · Any skill level',fun:65},
+        {name:'Killer',badge:'Party mode',badgeClass:'badge-hard',desc:'Each player gets a random number. Hit yours three times to become a <strong>Killer</strong>. Killers eliminate others by hitting their numbers. <strong>Last one standing wins!</strong>',players:'4–8 players · High drama',fun:95},
+      ],
+      pong:[
+        {name:'Classic Ping Pong',badge:'Standard',badgeClass:'badge-easy',desc:'Games to <strong>11 points</strong>, win by 2. Serve alternates every <strong>2 points</strong>. Ball must bounce on your side when serving. Typically <strong>best of 5 games</strong>.',players:'1v1 or 2v2 · 11 points per game',fun:60},
+        {name:'Around the Table',badge:'Party mode',badgeClass:'badge-medium',desc:'Players queue on each side. After each shot, run to the other side and join the back. Miss or hit the net — get a strike. <strong>Three strikes and you\'re out.</strong>',players:'4–12 players · Great for groups',fun:90},
+        {name:'Speed Pong',badge:'Fast & furious',badgeClass:'badge-hard',desc:'Race to <strong>21 points</strong>, but each rally must be played within <strong>3 seconds</strong> of the ball touching your side.',players:'1v1 · Reaction speed',fun:75},
+        {name:'King of the Table',badge:'Tournament',badgeClass:'badge-medium',desc:'One player is the <strong>King</strong>, defending one side. Challengers take turns with one serve each. Win a rally — you become King.',players:'3–8 players · Continuous play',fun:80},
+      ],
+      pool:[
+        {name:'8-Ball',badge:'Most popular',badgeClass:'badge-medium',desc:'One player pots <strong>solids (1–7)</strong>, the other pots <strong>stripes (9–15)</strong>. Sink all your balls, then pot the <strong>8-ball</strong> to win.',players:'1v1 or 2v2 · Classic pub rules',fun:80},
+        {name:'9-Ball',badge:'Fast & tactical',badgeClass:'badge-hard',desc:'Only balls <strong>1–9</strong> are used. You must always hit the lowest-numbered ball first, but any ball can go in. <strong>Pot the 9-ball</strong> on any legal shot to win.',players:'1v1 · Quick rounds',fun:85},
+        {name:'Straight Pool',badge:'Classic',badgeClass:'badge-hard',desc:'Pot any ball in any pocket — each counts as <strong>1 point</strong>. Before each shot, you must call the ball and pocket. First to reach the agreed total wins.',players:'1v1 · High skill ceiling',fun:65},
+        {name:'Cut-throat',badge:'Party mode',badgeClass:'badge-medium',desc:'3 players each own a group of balls (1–5, 6–10, 11–15). You try to <strong>pot your opponents\' balls</strong> while keeping yours on the table.',players:'3 players · Great rivalry',fun:90},
+      ],
+      shuffle:[
+        {name:'Classic (15 pts)',badge:'Standard',badgeClass:'badge-easy',desc:'Players take turns sliding <strong>4 pucks each</strong> toward the scoring zones. Only the team closest to the far end scores. First to <strong>15 points</strong> wins.',players:'1v1 or 2v2 · Best of 3 frames',fun:70},
+        {name:'Knock Off',badge:'Aggressive',badgeClass:'badge-medium',desc:'Same basic rules as Classic, but the goal is to <strong>knock your opponent\'s pucks off</strong> the scoring zones as much as scoring yourself.',players:'1v1 or 2v2 · Tactical',fun:88},
+        {name:'Horse Collar',badge:'Party mode',badgeClass:'badge-hard',desc:'Players must score <strong>exactly</strong> in each zone in order: 1, 2, 3, then bullseye. If you miss your target zone, <strong>no points</strong>.',players:'2–4 players · Precision focus',fun:75},
+      ],
+    }
+  },
+  no: {
+    tagline:'Følg spillet ditt — Logg seierene dine',
+    nav_log:'Logg', nav_players:'Spillere', nav_results:'Resultater', nav_rules:'Regler',
+    choose_game:'Velg spill',
+    tap_select:'Trykk for å velge',
+    variants_4:'4 varianter tilgjengelig', variants_3:'3 varianter tilgjengelig',
+    variant_title:'Spillvariant', select_variant:'Velg variant',
+    format_title:'Format', players_title:'Spillere', scores_title:'Poengstand',
+    save_btn:'Lagre resultat →', change_game:'↩ Bytt spill',
+    recent_results:'Siste resultater', clear_all:'Slett alle', all_games:'Alle spill',
+    win:'VANT', draw:'Uavgjort',
+    toast_saved:'Resultat lagret!', toast_draw:'Uavgjort!',
+    empty_play:'Ingen resultater ennå\nVær den første til å spille',
+    team:'Lag', player:'Spiller', fun_level:'Morsomhetsnivå',
+    session_label:'Aktive spillere', new_session:'Ny sesjon',
+    session_players:'Sesjonsspillere', no_players_yet:'Ingen spillere ennå',
+    log_first:'Logg et spill for å begynne å spore',
+    add_player:'+ Legg til spiller',
+    wins:'S', losses:'T', games:'K', win_rate:'Seierrate',
+    fav_game:'Favoritspill', no_games:'Ingen spill ennå',
+    m_1v1:'1 mot 1', m_1v1s:'2 spillere',
+    m_2v2:'2 mot 2', m_2v2s:'4 spillere, 2 lag',
+    m_3v3:'3 mot 3', m_3v3s:'6 spillere, 2 lag',
+    m_ffa3:'Alle mot alle — 3', m_ffa3s:'3 spillere, fri konkurranse',
+    m_ffa4:'Alle mot alle — 4', m_ffa4s:'4 spillere, fri konkurranse',
+    m_ffa5:'Alle mot alle — 5', m_ffa5s:'5 spillere, fri konkurranse',
+    m_ffa6:'Alle mot alle — 6', m_ffa6s:'6 spillere, fri konkurranse',
+    m_teams:'Lag', m_teamss:'Egne lagnavn',
+    darts_v:['501','301','Cricket','Shanghai','Halve It','Count Up','Legs','Rundt klokken','Killer'],
+    pong_v:['Klassisk (11 pkt)','Rundt bordet','Hastighetspong (21 pkt)','Bordkongen'],
+    pool_v:['8-ball','9-ball','Fri biljard','Cut-throat'],
+    shuffle_v:['Klassisk (15 pkt)','Slå av','Hestekrave'],
+    rules:{
+      darts:[
+        {name:'501',badge:'Mest populær',badgeClass:'badge-medium',desc:'Start på <strong>501</strong> og tell ned til nøyaktig null. Avslutt på et <strong>dobbelt eller bullseye</strong>. Går du under null = bust, turen slutter og poengsummen nullstilles.',players:'2–4 spillere · Først til null vinner',fun:90},
+        {name:'301',badge:'Rask versjon',badgeClass:'badge-easy',desc:'Samme som 501 men starter på <strong>301</strong>. Raskere runder, perfekt når du vil ha et kjapt spill. Avslutt på et <strong>dobbelt eller bullseye</strong>.',players:'2–4 spillere · Først til null vinner',fun:80},
+        {name:'Cricket',badge:'Strategisk',badgeClass:'badge-hard',desc:'Lukk tallene <strong>15–20 og bullseye</strong> ved å treffe hvert tre ganger. Når du har lukket et tall kan du score poeng på det til motstanderen lukker det også. Lukk alle tall med like mange eller flere poeng for å vinne.',players:'2–4 spillere · Lukk alle tall først',fun:85},
+        {name:'Shanghai',badge:'Øyeblikkelig seier',badgeClass:'badge-hard',desc:'Hver runde har ett target (1 i runde 1, 2 i runde 2…). Treffer du <strong>singel, dobbel og trippel</strong> av det tallet i én tur = øyeblikkelig seier (Shanghai!). Ellers score kun på target-tallet.',players:'2–8 spillere · Kan slutte når som helst',fun:88},
+        {name:'Halve It',badge:'Høy risiko',badgeClass:'badge-medium',desc:'Bli enige om en liste med mål (f.eks. 20, 19, 18, bull, dobbelt, trippel). Hver runde må du treffe målet — <strong>bom = poengsummen din halveres</strong>. Høyest sum etter alle mål vinner.',players:'2–8 spillere · Høy spenning',fun:85},
+        {name:'Count Up',badge:'Nybegynner',badgeClass:'badge-easy',desc:'Kast 3 piler og <strong>legg sammen poengsummen</strong> hver runde. Ingen spesielle regler — ren poengsamling. Spill et fast antall runder, høyest totalsum vinner.',players:'2–8 spillere · Alle nivåer',fun:55},
+        {name:'Legs',badge:'Press',badgeClass:'badge-medium',desc:'Hver spiller starter med <strong>3 ben</strong>. Etter hver runde mister den med lavest poeng et ben. Mister du alle 3 ben = ute. Siste gjenværende spiller vinner.',players:'3–8 spillere · Eliminering',fun:80},
+        {name:'Rundt klokken',badge:'Klassisk',badgeClass:'badge-easy',desc:'Treff hvert tall i rekkefølge — <strong>1 til 20</strong>, deretter bullseye. Du må treffe et tall før du går videre. Første til å fullføre sekvensen vinner.',players:'2–6 spillere · Alle nivåer',fun:65},
+        {name:'Killer',badge:'Festmodus',badgeClass:'badge-hard',desc:'Hver spiller får et tilfeldig tall. Treff ditt tre ganger for å bli <strong>Killer</strong>. Killere eliminerer andre ved å treffe deres tall. <strong>Siste mann som står igjen vinner!</strong>',players:'4–8 spillere · Høy dramatikk',fun:95},
+      ],
+      pong:[
+        {name:'Klassisk bordtennis',badge:'Standard',badgeClass:'badge-easy',desc:'Spill til <strong>11 poeng</strong>, vinn med 2. Serve byttes hvert <strong>2. poeng</strong>.',players:'1v1 eller 2v2 · 11 poeng per sett',fun:60},
+        {name:'Rundt bordet',badge:'Festmodus',badgeClass:'badge-medium',desc:'Spillere køer på hver side. Bom eller nett — én advarsel. <strong>Tre advarsler og du er ute.</strong>',players:'4–12 spillere · Perfekt for grupper',fun:90},
+        {name:'Hastighetspong',badge:'Fort & gærent',badgeClass:'badge-hard',desc:'Løp til <strong>21 poeng</strong>, men hvert slag må spilles innen <strong>3 sekunder</strong>.',players:'1v1 · Reaksjonshastighet',fun:75},
+        {name:'Bordkongen',badge:'Turnering',badgeClass:'badge-medium',desc:'En spiller er <strong>Kongen</strong>. Vinn en rally — du blir Kongen. Flest forsvar på rad vinner.',players:'3–8 spillere · Kontinuerlig spill',fun:80},
+      ],
+      pool:[
+        {name:'8-ball',badge:'Mest populær',badgeClass:'badge-medium',desc:'Én spiller potter <strong>heltall (1–7)</strong>, den andre potter <strong>stripete (9–15)</strong>. Pott <strong>8-ballen</strong> for å vinne.',players:'1v1 eller 2v2 · Klassiske pubregler',fun:80},
+        {name:'9-ball',badge:'Fort og taktisk',badgeClass:'badge-hard',desc:'Kun baller <strong>1–9</strong> brukes. Du må alltid treffe den laveste nummerte ballen først.',players:'1v1 · Raske runder',fun:85},
+        {name:'Fri biljard',badge:'Klassisk',badgeClass:'badge-hard',desc:'Pott hvilken som helst ball — hver teller som <strong>1 poeng</strong>. Først til avtalt poengsum vinner.',players:'1v1 · Høyt ferdighetsnivå',fun:65},
+        {name:'Cut-throat',badge:'Festmodus',badgeClass:'badge-medium',desc:'3 spillere eier hver sin gruppe baller. Siste spiller med minst én ball igjen <strong>vinner</strong>.',players:'3 spillere · Stor rivalisering',fun:90},
+      ],
+      shuffle:[
+        {name:'Klassisk (15 pkt)',badge:'Standard',badgeClass:'badge-easy',desc:'Spillere skyver <strong>4 puckes</strong> mot poengsonene. Kun laget nærmest enden scorer. Først til <strong>15 poeng</strong> vinner.',players:'1v1 eller 2v2 · Best av 3 runder',fun:70},
+        {name:'Slå av',badge:'Aggressiv',badgeClass:'badge-medium',desc:'Samme grunnregler som klassisk, men målet er å <strong>slå motstandernes pucces av</strong> poengsonene.',players:'1v1 eller 2v2 · Taktisk',fun:88},
+        {name:'Hestekrave',badge:'Festmodus',badgeClass:'badge-hard',desc:'Spillere må score <strong>nøyaktig</strong> i hver sone i rekkefølge. Krever presisjon fremfor kraft.',players:'2–4 spillere · Presisjonsfokus',fun:75},
+      ],
+    }
+  }
+};
+
+function t(key) { return T[lang][key] || T.en[key] || key; }
+
+function setLang(l) {
+  lang = l; localStorage.setItem('cue_lang', lang); applyLang();
+}
+
+function applyLang() {
+  const enBtn = document.getElementById('lang-en');
+  const noBtn = document.getElementById('lang-no');
+  if (enBtn) { enBtn.style.background = lang==='en'?'rgba(255,255,255,0.18)':'transparent'; enBtn.style.color = lang==='en'?'#fff':'#6b5f4e'; }
+  if (noBtn) { noBtn.style.background = lang==='no'?'rgba(255,255,255,0.18)':'transparent'; noBtn.style.color = lang==='no'?'#fff':'#6b5f4e'; }
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    if (el.tagName==='INPUT') el.placeholder = val; else el.textContent = val;
+  });
+  renderRules();
+  if (selectedGame) document.getElementById('mode-grid').innerHTML = buildModeGrid();
+  renderScores();
+  renderPlayersPage();
+}
+
+// ── STATE ─────────────────────────────────────────────────────────
+let selectedGame = null;
+let selectedMode = null;
+let scores = JSON.parse(localStorage.getItem('cue_scores') || '[]');
+let activeFilter = 'all';
+
+// Session: { name → {wins,losses,games,gameCounts:{darts,pong,pool,shuffleboard}} }
+let session = {}; // in-memory only, resets on page reload
+
+function saveSession() { /* in-memory only */ }
+
+function getOrCreatePlayer(name) {
+  const key = name.trim().toLowerCase();
+  // find existing (case-insensitive)
+  const existing = Object.keys(session).find(k => k.toLowerCase() === key);
+  if (existing) return existing;
+  // create new — use the name as typed (first time)
+  session[name] = { wins:0, losses:0, games:0, gameCounts:{darts:0,pong:0,pool:0,shuffleboard:0} };
+  saveSession();
+  return name;
+}
+
+function recordResult(names, winnerNames, game) {
+  // names: array of all player names in this match
+  // winnerNames: array of winning player names (empty = draw)
+  names.forEach(raw => {
+    const key = getOrCreatePlayer(raw);
+    session[key].games++;
+    session[key].gameCounts = session[key].gameCounts || {darts:0,pong:0,pool:0,shuffleboard:0};
+    session[key].gameCounts[game] = (session[key].gameCounts[game] || 0) + 1;
+    const isWinner = winnerNames.some(w => w.trim().toLowerCase() === key.toLowerCase());
+    if (winnerNames.length === 0) {
+      // draw — no win/loss
+    } else if (isWinner) {
+      session[key].wins++;
+    } else {
+      session[key].losses++;
+    }
+  });
+  saveSession();
+  renderPlayersPage();
+}
+
+function newSession() {
+  session = {};
+  saveSession();
+  renderPlayersPage();
+  showToast('New session started');
+}
+
+// ── SESSION BANNER ────────────────────────────────────────────────
+
+// ── PLAYERS PAGE ──────────────────────────────────────────────────
+function removePlayer(name) {
+  delete session[name];
+  renderPlayersPage();
+}
+
+function renderPlayersPage() {
+  const list = document.getElementById('players-list');
+  const empty = document.getElementById('no-players-state');
+  const players = Object.entries(session);
+  if (!players.length) { empty.style.display='block'; list.innerHTML=''; return; }
+  empty.style.display='none';
+
+  players.sort((a,b) => b[1].wins - a[1].wins || b[1].games - a[1].games);
+
+  list.innerHTML = players.map(([name, s], i) => {
+    const winRate = s.games > 0 ? Math.round((s.wins/s.games)*100) : 0;
+    const emoji = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : `#${i+1}`;
+    const gc = s.gameCounts || {};
+    const favGame = Object.entries(gc).sort((a,b)=>b[1]-a[1])[0];
+    const favLabel = favGame && favGame[1]>0 ? {darts:'Darts',pong:'Ping Pong',pool:'Pool',shuffleboard:'Shuffleboard'}[favGame[0]] : null;
+    const initial = name.charAt(0).toUpperCase();
+    const safeName = name.replace(/'/g, "\\'");
+    return `<div class="player-card">
+      <div class="player-avatar">${initial}</div>
+      <div>
+        <div class="player-name">${name}</div>
+        <div class="player-stats">
+          <span class="stat-pill">${t('wins')} <span>${s.wins}</span></span>
+          <span class="stat-pill">${t('losses')} <span>${s.losses}</span></span>
+          <span class="stat-pill">${t('games')} <span>${s.games}</span></span>
+          ${favLabel ? `<span class="stat-pill">${t('fav_game')} <span>${favLabel}</span></span>` : ''}
+        </div>
+        <div class="wl-bar"><div class="wl-fill" style="width:${winRate}%"></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.5rem;">
+        <div class="player-rank-badge">${emoji}<small>${winRate}% ${t('win_rate')}</small></div>
+        <button onclick="removePlayer('${safeName}')" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:0.52rem;letter-spacing:0.08em;padding:0.2rem 0.5rem;border-radius:4px;cursor:pointer;" onmouseover="this.style.borderColor='#c02828';this.style.color='#c02828'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">✕ remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── RULES ─────────────────────────────────────────────────────────
+function renderRules() {
+  ['darts','pong','pool','shuffle'].forEach(game => {
+    const container = document.getElementById(game+'-rules');
+    if (!container) return;
+    const variants = t('rules')[game] || [];
+    container.innerHTML = variants.map(v => `
+      <div class="game-variant">
+        <div class="variant-name">${v.name}</div>
+        <span class="variant-badge ${v.badgeClass}">${v.badge}</span>
+        <p class="variant-desc">${v.desc}</p>
+        <span class="players-badge">${v.players}</span>
+        <div class="progress-row">
+          <span class="progress-label">${t('fun_level')}</span>
+          <div class="stat-bar"><div class="stat-fill" style="width:${v.fun}%"></div></div>
+        </div>
+      </div>`).join('');
+  });
+}
+
+function showRules(id, btn) {
+  document.querySelectorAll('.rules-content').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.rules-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active'); btn.classList.add('active');
+}
+
+// ── MODES ─────────────────────────────────────────────────────────
+function buildModeGrid() {
+  const modes = [
+    {id:'1v1',  icon:'👤',lk:'m_1v1', sk:'m_1v1s', type:'versus',sides:2,perSide:1},
+    {id:'2v2',  icon:'👥',lk:'m_2v2', sk:'m_2v2s', type:'versus',sides:2,perSide:2},
+    {id:'3v3',  icon:'👥',lk:'m_3v3', sk:'m_3v3s', type:'versus',sides:2,perSide:3},
+    {id:'ffa3', icon:'🎲',lk:'m_ffa3',sk:'m_ffa3s',type:'ffa',count:3},
+    {id:'ffa4', icon:'🎲',lk:'m_ffa4',sk:'m_ffa4s',type:'ffa',count:4},
+    {id:'ffa5', icon:'🎲',lk:'m_ffa5',sk:'m_ffa5s',type:'ffa',count:5},
+    {id:'ffa6', icon:'🎲',lk:'m_ffa6',sk:'m_ffa6s',type:'ffa',count:6},
+    {id:'t2v2', icon:'🏅',lk:'m_teams',sk:'m_teamss',type:'teams',teams:2},
+  ];
+  window._MODES = modes;
+  return modes.map(m=>`
+    <button class="mode-btn${selectedMode?.id===m.id?' active':''}" onclick="selectMode('${m.id}',this)">
+      <span class="mode-icon">${m.icon}</span>
+      <span class="mode-label">${t(m.lk)}</span>
+      <span class="mode-sub">${t(m.sk)}</span>
+    </button>`).join('');
+}
+
+function getModes() { if (!window._MODES) buildModeGrid(); return window._MODES; }
+
+// ── GAME SELECTION ────────────────────────────────────────────────
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id==='leaderboard') renderScores();
+  if (id==='players') renderPlayersPage();
+}
+
+function selectGame(game) {
+  selectedGame = game; selectedMode = null;
+  document.querySelectorAll('.game-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('card-'+game).classList.add('selected');
+  const variants = {darts:t('darts_v'),pong:t('pong_v'),pool:t('pool_v'),shuffleboard:t('shuffle_v')}[game];
+  document.getElementById('variant-select').innerHTML = variants.map(v=>`<option value="${v}">${v}</option>`).join('');
+  document.getElementById('mode-grid').innerHTML = buildModeGrid();
+  document.getElementById('players-section').style.display='none';
+  document.getElementById('submit-form').style.display='block';
+  setTimeout(()=>document.getElementById('submit-form').scrollIntoView({behavior:'smooth',block:'start'}),50);
+}
+
+function selectMode(modeId, btn) {
+  selectedMode = getModes().find(m=>m.id===modeId);
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPlayersSection();
+}
+
+// ── PLAYER INPUT WITH AUTOCOMPLETE ───────────────────────────────
+function makePlayerInput(id, placeholder, idx) {
+  const sessionNames = Object.keys(session);
+  if (sessionNames.length === 0) {
+    return `<input type="text" id="${id}" placeholder="${placeholder}" maxlength="25" autocomplete="off">`;
+  }
+  // datalist for autocomplete from session
+  return `<input type="text" id="${id}" placeholder="${placeholder}" maxlength="25" autocomplete="off" list="session-names-list">`;
+}
+
+function ensureDatalist() {
+  let dl = document.getElementById('session-names-list');
+  if (!dl) {
+    dl = document.createElement('datalist');
+    dl.id = 'session-names-list';
+    document.body.appendChild(dl);
+  }
+  dl.innerHTML = Object.keys(session).map(n=>`<option value="${n}">`).join('');
+}
+
+function renderPlayersSection() {
+  const m = selectedMode;
+  const pi = document.getElementById('players-inputs');
+  ensureDatalist();
+
+  if (m.type === 'versus') {
+    let html = '';
+    for (let side=1; side<=2; side++) {
+      html += `<div class="team-block"><div class="team-header"><span class="team-badge ${side===2?'b':''}">${t('team')} ${side}</span></div>`;
+      for (let p=1; p<=m.perSide; p++) {
+        const idx = (side-1)*m.perSide+p;
+        html += `<div class="player-row"><div class="player-num">${idx}</div>${makePlayerInput('pname_'+idx,t('player')+' '+idx,idx)}</div>`;
+      }
+      html += `</div>`;
+    }
+    pi.innerHTML = html;
+  } else if (m.type === 'ffa') {
+    let html = '';
+    for (let p=1; p<=m.count; p++)
+      html += `<div class="player-row"><div class="player-num">${p}</div>${makePlayerInput('pname_'+p,t('player')+' '+p,p)}</div>`;
+    pi.innerHTML = html;
+  } else if (m.type === 'teams') {
+    pi.innerHTML = `
+      <div class="player-row"><div class="player-num" style="background:var(--orange)">A</div><input type="text" id="pname_1" placeholder="${t('team')} A" maxlength="25"></div>
+      <div class="player-row"><div class="player-num" style="background:var(--dark)">B</div><input type="text" id="pname_2" placeholder="${t('team')} B" maxlength="25"></div>`;
+  }
+
+  document.getElementById('players-section').style.display='block';
+  setTimeout(()=>document.getElementById('players-section').scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+
+function resetForm() {
+  selectedGame=null; selectedMode=null; activeGame=null;
+  document.querySelectorAll('.game-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('submit-form').style.display='none';
+  document.getElementById('players-section').style.display='none';
+  document.getElementById('game-active').style.display='none';
+}
+
+function abandonGame() {
+  if (!confirm('Abandon this game?')) return;
+  activeGame = null;
+  document.getElementById('game-active').style.display='none';
+  document.getElementById('submit-form').style.display='none';
+}
+
+// ── ACTIVE GAME STATE ─────────────────────────────────────────────
+let activeGame = null;
+// activeGame = { game, variant, mode, players:[{name,score,roundWins}], turns:[], winTarget, bestOf }
+
+function getWinCondition(game, variant) {
+  const v = variant.toLowerCase();
+  if (game === 'darts') {
+    if (v === '501') return { type:'countdown', start:501, label:'501 — score down to exactly 0 (finish on double/bull)' };
+    if (v === '301') return { type:'countdown', start:301, label:'301 — score down to exactly 0 (finish on double/bull)' };
+    if (v.includes('count up')) return { type:'countup', label:'Count Up — add points each round, highest total wins' };
+    // all others: manual
+    return { type:'manual', label:'Manual — End game when done' };
+  }
+  if (game === 'pong') {
+    if (v.includes('21') || v.includes('speed')) return { type:'points', target:21, label:'First to 21 pts wins' };
+    if (v.includes('around') || v.includes('king') || v.includes('rundt') || v.includes('kongen')) return { type:'manual', label:'Manual — End game when done' };
+    return { type:'rounds', target:2, label:'Best of 3 sets — first to 2 sets wins (each set to 11)' };
+  }
+  if (game === 'shuffleboard') {
+    if (v.includes('15') || v.includes('klassisk') || v.includes('classic')) return { type:'points', target:15, label:'First to 15 pts wins' };
+    return { type:'manual', label:'Manual — End game when done' };
+  }
+  if (game === 'pool') {
+    if (v.includes('cut') || v.includes('cutthroat')) return { type:'manual', label:'Manual — End game when done' };
+    return { type:'rounds', target:2, label:'Best of 3 games — first to 2 wins' };
+  }
+  return { type:'manual', label:'Manual — End game when done' };
+}
+
+function startGame() {
+  if (!selectedGame || !selectedMode) return showToast('Choose a game & format first!');
+  const m = selectedMode;
+  const variant = document.getElementById('variant-select').value;
+
+  // Collect player names
+  let players = [];
+  if (m.type === 'versus') {
+    for (let i=1; i<=m.sides*m.perSide; i++) {
+      const v = document.getElementById(`pname_${i}`)?.value.trim();
+      if (!v) return showToast(`Enter name for player ${i}`);
+      players.push({ name:v, score:0, roundWins:0, side: i<=m.perSide ? 0 : 1 });
+    }
+  } else if (m.type === 'ffa') {
+    for (let i=1; i<=m.count; i++) {
+      const v = document.getElementById(`pname_${i}`)?.value.trim();
+      if (!v) return showToast(`Enter name for player ${i}`);
+      players.push({ name:v, score:0, roundWins:0 });
+    }
+  } else if (m.type === 'teams') {
+    const t1 = document.getElementById('pname_1')?.value.trim();
+    const t2 = document.getElementById('pname_2')?.value.trim();
+    if (!t1||!t2) return showToast('Enter both team names!');
+    players = [
+      { name:t1, score:0, roundWins:0, side:0 },
+      { name:t2, score:0, roundWins:0, side:1 }
+    ];
+  }
+
+  const winCond = getWinCondition(selectedGame, variant);
+
+  // For countdown mode, score = remaining points (start value)
+  if (winCond.type === 'countdown') {
+    players.forEach(p => p.score = winCond.start);
+  }
+  // For countup, score starts at 0 (default), rounds tracked separately
+  if (winCond.type === 'countup') {
+    players.forEach(p => { p.score = 0; p.roundScores = []; });
+  }
+
+  activeGame = {
+    game: selectedGame,
+    variant,
+    mode: m,
+    players,
+    turns: [],
+    winCond,
+    startTime: Date.now()
+  };
+
+  // Special game trackers
+  const specialGames = ['halve it', 'shanghai', 'legs', 'around the clock', 'rundt klokken'];
+  if (specialGames.includes(variant.toLowerCase())) {
+    initSpecialGame();
+    return;
+  }
+
+  document.getElementById('submit-form').style.display='none';
+  document.getElementById('game-active').style.display='block';
+  renderGameUI();
+  setTimeout(()=>document.getElementById('game-active').scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+
+// ── SPECIAL GAME TRACKERS ─────────────────────────────────────────
+
+const HALVE_IT_TARGETS = ['20','19','18','17','16','15','Bull','Double','Triple','Bull (x2)'];
+
+function initSpecialGame() {
+  const g = activeGame;
+  const v = g.variant.toLowerCase();
+  document.getElementById('submit-form').style.display = 'none';
+  document.getElementById('game-active').style.display = 'block';
+
+  if (v.includes('halve it')) {
+    g.specialState = {
+      type: 'halveit',
+      targets: [...HALVE_IT_TARGETS],
+      currentTarget: 0,
+    };
+    g.players.forEach(p => p.score = 0);
+  } else if (v.includes('shanghai')) {
+    g.specialState = {
+      type: 'shanghai',
+      currentRound: 1, // target number = round number
+      maxRounds: 20,
+    };
+    g.players.forEach(p => { p.score = 0; p.shanghaid = false; });
+  } else if (v.includes('legs')) {
+    g.specialState = { type: 'legs' };
+    g.players.forEach(p => { p.score = 0; p.legs = 3; p.eliminated = false; });
+  } else if (v.includes('around') || v.includes('rundt')) {
+    g.specialState = { type: 'atc' };
+    g.players.forEach(p => { p.score = 0; p.atcTarget = 1; p.finished = false; });
+  }
+
+  renderSpecialGameUI();
+  setTimeout(()=>document.getElementById('game-active').scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+
+function renderSpecialGameUI() {
+  const g = activeGame;
+  const s = g.specialState;
+  const sb = document.getElementById('game-scoreboard');
+  const ti = document.getElementById('turn-inputs');
+  const status = document.getElementById('game-status');
+  const turnTitle = document.getElementById('turn-title');
+
+  if (s.type === 'halveit') {
+    const target = s.targets[s.currentTarget];
+    status.textContent = `Round ${s.currentTarget+1} of ${s.targets.length}`;
+    turnTitle.textContent = `Target: ${target}`;
+
+    // Scoreboard
+    const sorted = [...g.players].sort((a,b)=>b.score-a.score);
+    sb.innerHTML = `<div class="scoreboard-grid">` + sorted.map((p,i) => `
+      <div class="sb-player ${i===0&&p.score>0?'leader':''}">
+        <div><div class="sb-name">${p.name}</div></div>
+        <div class="sb-score">${p.score}</div>
+      </div>`).join('') + `</div>`;
+
+    // Inputs: hit/miss per player
+    ti.innerHTML = `<p style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);margin-bottom:0.8rem;text-transform:uppercase;letter-spacing:0.1em;">Miss = score halved · Hit = add points</p>` +
+      g.players.map((p,i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid var(--bg2);">
+          <div style="font-family:'DM Sans',sans-serif;font-weight:600;color:#fff;font-size:0.9rem;">${p.name} <span style="color:var(--orange);font-family:'DM Mono',monospace;font-size:0.75rem;">${p.score}</span></div>
+          <div style="display:flex;gap:0.5rem;">
+            <button onclick="halveitHit(${i})" style="background:rgba(232,98,42,0.2);border:1.5px solid var(--orange);color:var(--orange);font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.08em;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">✓ HIT</button>
+            <button onclick="halveitMiss(${i})" style="background:rgba(255,255,255,0.04);border:1.5px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.08em;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">✗ MISS</button>
+          </div>
+        </div>`).join('');
+
+    // Track which players have submitted this round
+    if (!g.specialState.roundHits) g.specialState.roundHits = new Array(g.players.length).fill(null);
+    // Show next round button if all players submitted
+    const allDone = g.specialState.roundHits.every(v=>v!==null);
+    document.getElementById('add-turn-btn').style.display = allDone ? 'block' : 'none';
+    document.getElementById('add-turn-btn').textContent = s.currentTarget < s.targets.length-1 ? '→ Next target' : '🏆 End game';
+
+  } else if (s.type === 'shanghai') {
+    const rnd = s.currentRound;
+    status.textContent = `Round ${rnd} of ${s.maxRounds} — target number: ${rnd}`;
+    turnTitle.textContent = `Number ${rnd}`;
+
+    const sorted = [...g.players].sort((a,b)=>b.score-a.score);
+    sb.innerHTML = `<div class="scoreboard-grid">` + sorted.map((p,i) => `
+      <div class="sb-player ${i===0&&p.score>0&&!p.shanghaid?'leader':''}">
+        <div><div class="sb-name">${p.shanghaid?'🥢 SHANGHAI! ':''}${p.name}</div></div>
+        <div class="sb-score">${p.score}</div>
+      </div>`).join('') + `</div>`;
+
+    ti.innerHTML = g.players.map((p,i) => `
+      <div style="padding:0.8rem 0;border-bottom:1px solid var(--bg2);">
+        <div style="font-family:'DM Sans',sans-serif;font-weight:600;color:#fff;margin-bottom:0.5rem;">${p.name}</div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+          <button onclick="shanghaiScore(${i},0)" id="sh_${i}_0" style="flex:1;background:rgba(255,255,255,0.04);border:1.5px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:0.6rem;padding:0.4rem;border-radius:6px;cursor:pointer;min-width:50px;">Miss<br>0</button>
+          <button onclick="shanghaiScore(${i},${rnd})" id="sh_${i}_1" style="flex:1;background:rgba(255,255,255,0.04);border:1.5px solid var(--border);color:#fff;font-family:'DM Mono',monospace;font-size:0.6rem;padding:0.4rem;border-radius:6px;cursor:pointer;min-width:50px;">Single<br>${rnd}</button>
+          <button onclick="shanghaiScore(${i},${rnd*2})" id="sh_${i}_2" style="flex:1;background:rgba(255,255,255,0.04);border:1.5px solid var(--border);color:#fff;font-family:'DM Mono',monospace;font-size:0.6rem;padding:0.4rem;border-radius:6px;cursor:pointer;min-width:50px;">Double<br>${rnd*2}</button>
+          <button onclick="shanghaiScore(${i},${rnd*3})" id="sh_${i}_3" style="flex:1;background:rgba(255,255,255,0.04);border:1.5px solid var(--border);color:#fff;font-family:'DM Mono',monospace;font-size:0.6rem;padding:0.4rem;border-radius:6px;cursor:pointer;min-width:50px;">Triple<br>${rnd*3}</button>
+          <button onclick="shanghaiScore(${i},'shanghai')" id="sh_${i}_s" style="flex:2;background:rgba(232,98,42,0.15);border:1.5px solid var(--orange);color:var(--orange);font-family:'DM Mono',monospace;font-size:0.6rem;padding:0.4rem;border-radius:6px;cursor:pointer;min-width:80px;">🥢 SHANGHAI!<br>S+D+T = instant win</button>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('add-turn-btn').style.display = 'none'; // auto-advances
+
+  } else if (s.type === 'legs') {
+    status.textContent = `Lowest score each round loses a leg — 3 legs = eliminated`;
+    turnTitle.textContent = `Round ${g.turns.length+1} — enter scores`;
+
+    const active = g.players.filter(p=>!p.eliminated);
+    sb.innerHTML = `<div class="scoreboard-grid">` + g.players.map(p => {
+      const legs = '🦵'.repeat(p.legs) + (p.eliminated ? ' 💀' : '');
+      return `<div class="sb-player ${p.eliminated?'':''}">
+        <div><div class="sb-name" style="${p.eliminated?'opacity:0.4;text-decoration:line-through':''}">${p.name}</div><div style="font-size:1rem;margin-top:0.2rem;">${legs}</div></div>
+        <div class="sb-score" style="${p.eliminated?'opacity:0.3':''}${active.length===1&&!p.eliminated?' color:var(--orange)':''}">${p.score}</div>
+      </div>`;
+    }).join('') + `</div>`;
+
+    ti.innerHTML = active.map((p,i) => {
+      const idx = g.players.indexOf(p);
+      return `<div class="turn-row"><div class="turn-label" title="${p.name}">${p.name}</div><input type="number" id="ti_legs_${idx}" placeholder="0" min="0" max="999" style="flex:1;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:0.65rem 1rem;font-size:1.4rem;font-family:'Playfair Display',serif;font-weight:700;text-align:center;width:100%;outline:none;"></div>`;
+    }).join('');
+
+    document.getElementById('add-turn-btn').style.display = 'block';
+    document.getElementById('add-turn-btn').textContent = '+ Add round';
+
+  } else if (s.type === 'atc') {
+    status.textContent = `Hit numbers 1→20 in order, then bullseye`;
+    turnTitle.textContent = `Round ${g.turns.length+1}`;
+
+    sb.innerHTML = `<div class="scoreboard-grid">` + g.players.map(p => {
+      const prog = p.finished ? 22 : p.atcTarget;
+      const pct = Math.round((Math.min(prog-1,21)/21)*100);
+      const label = p.finished ? '🎯 Done!' : p.atcTarget <= 20 ? `On ${p.atcTarget}` : 'On Bull';
+      return `<div class="sb-player ${p.finished?'leader':''}">
+        <div style="flex:1">
+          <div class="sb-name">${p.name}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted);margin:0.2rem 0;">${label}</div>
+          <div style="background:var(--bg2);border-radius:4px;height:4px;margin-top:0.3rem;overflow:hidden;"><div style="background:var(--orange);height:100%;width:${pct}%;transition:width 0.3s;"></div></div>
+        </div>
+        <div class="sb-score" style="font-size:1.1rem;">${p.finished?'✓':p.atcTarget<=20?p.atcTarget:'🎯'}</div>
+      </div>`;
+    }).join('') + `</div>`;
+
+    ti.innerHTML = g.players.filter(p=>!p.finished).map(p => {
+      const idx = g.players.indexOf(p);
+      const targetLabel = p.atcTarget <= 20 ? `${p.name} — hit ${p.atcTarget}?` : `${p.name} — hit bullseye?`;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid var(--bg2);">
+        <div style="font-family:'DM Sans',sans-serif;color:#fff;font-size:0.85rem;">${targetLabel}</div>
+        <div style="display:flex;gap:0.5rem;">
+          <button onclick="atcHit(${idx})" style="background:rgba(232,98,42,0.2);border:1.5px solid var(--orange);color:var(--orange);font-family:'DM Mono',monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">✓ HIT</button>
+          <button onclick="atcMiss(${idx})" style="background:rgba(255,255,255,0.04);border:1.5px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:0.65rem;padding:0.4rem 0.8rem;border-radius:6px;cursor:pointer;">✗ MISS</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('add-turn-btn').style.display = 'none';
+  }
+
+  renderTurnHistory();
+}
+
+// ── HALVE IT ACTIONS ──────────────────────────────────────────────
+function halveitHit(playerIdx) {
+  const g = activeGame;
+  const s = g.specialState;
+  const target = s.targets[s.currentTarget];
+  const p = g.players[playerIdx];
+  let pts = 0;
+  if (target === 'Bull') pts = 25;
+  else if (target === 'Bull (x2)') pts = 50;
+  else if (target === 'Double') pts = 2 * (parseInt(target)||20);
+  else if (target === 'Triple') pts = 3 * (parseInt(target)||20);
+  else pts = parseInt(target) || 20;
+  p.score += pts;
+  s.roundHits[playerIdx] = true;
+  renderSpecialGameUI();
+}
+
+function halveitMiss(playerIdx) {
+  const g = activeGame;
+  const s = g.specialState;
+  const p = g.players[playerIdx];
+  p.score = Math.floor(p.score / 2);
+  s.roundHits[playerIdx] = false;
+  renderSpecialGameUI();
+}
+
+// override addTurn for halveit
+function halveitNextRound() {
+  const g = activeGame;
+  const s = g.specialState;
+  const target = s.targets[s.currentTarget];
+  g.turns.push(g.players.map(p=>({label:p.name, score:p.score})));
+  s.roundHits = new Array(g.players.length).fill(null);
+  s.currentTarget++;
+  if (s.currentTarget >= s.targets.length) {
+    endGame();
+  } else {
+    renderSpecialGameUI();
+  }
+}
+
+// ── SHANGHAI ACTIONS ──────────────────────────────────────────────
+let shanghaiRoundScores = {};
+
+function shanghaiScore(playerIdx, val) {
+  const g = activeGame;
+  const s = g.specialState;
+  shanghaiRoundScores[playerIdx] = val;
+
+  // highlight selected
+  [0,1,2,3,'s'].forEach(t => {
+    const btn = document.getElementById(`sh_${playerIdx}_${t}`);
+    if (btn) btn.style.background = 'rgba(255,255,255,0.04)';
+  });
+  const key = val==='shanghai'?'s':val===0?0:val===s.currentRound?1:val===s.currentRound*2?2:3;
+  const sel = document.getElementById(`sh_${playerIdx}_${key}`);
+  if (sel) sel.style.background = 'rgba(232,98,42,0.25)';
+
+  // Shanghai = instant win
+  if (val === 'shanghai') {
+    g.players[playerIdx].shanghaid = true;
+    g.players[playerIdx].score += s.currentRound + s.currentRound*2 + s.currentRound*3;
+    showToast(`🥢 SHANGHAI! ${g.players[playerIdx].name} wins!`);
+    g.turns.push(g.players.map(p=>({label:p.name,score:p.score})));
+    endGame();
+    return;
+  }
+
+  // Check if all players scored this round
+  const allDone = g.players.every((p,i) => shanghaiRoundScores[i] !== undefined);
+  if (allDone) {
+    g.players.forEach((p,i) => { p.score += shanghaiRoundScores[i] || 0; });
+    g.turns.push(g.players.map(p=>({label:p.name,score:p.score})));
+    shanghaiRoundScores = {};
+    s.currentRound++;
+    if (s.currentRound > s.maxRounds) {
+      endGame();
+    } else {
+      renderSpecialGameUI();
+    }
+  } else {
+    renderSpecialGameUI();
+  }
+}
+
+// ── LEGS ACTIONS ──────────────────────────────────────────────────
+function addTurnLegs() {
+  const g = activeGame;
+  const active = g.players.filter(p=>!p.eliminated);
+  const scores = {};
+  let anyEmpty = false;
+  active.forEach(p => {
+    const idx = g.players.indexOf(p);
+    const v = document.getElementById(`ti_legs_${idx}`)?.value;
+    if (v==='') anyEmpty=true;
+    else scores[idx] = parseInt(v);
+  });
+  if (anyEmpty) return showToast('Enter scores for all active players!');
+
+  // Find lowest score
+  const vals = Object.values(scores);
+  const minScore = Math.min(...vals);
+  // All players with min score lose a leg
+  active.forEach(p => {
+    const idx = g.players.indexOf(p);
+    p.score = scores[idx];
+    if (scores[idx] === minScore) {
+      p.legs--;
+      if (p.legs <= 0) { p.legs = 0; p.eliminated = true; }
+    }
+  });
+
+  g.turns.push(g.players.map(p=>({label:p.name,score:p.score})));
+
+  // Check if only one left
+  const remaining = g.players.filter(p=>!p.eliminated);
+  if (remaining.length <= 1) {
+    endGame();
+  } else {
+    renderSpecialGameUI();
+  }
+}
+
+// ── AROUND THE CLOCK ACTIONS ──────────────────────────────────────
+function atcHit(playerIdx) {
+  const g = activeGame;
+  const p = g.players[playerIdx];
+  p.atcTarget++;
+  if (p.atcTarget > 21) { // 21 = bullseye done
+    p.finished = true;
+    p.score = g.players.filter(pl=>pl.finished).length; // finish order
+    showToast(`🎯 ${p.name} finished!`);
+    // Check if all done
+    if (g.players.every(pl=>pl.finished)) { endGame(); return; }
+  }
+  checkAtcRoundDone();
+}
+
+function atcMiss(playerIdx) {
+  checkAtcRoundDone();
+}
+
+function checkAtcRoundDone() {
+  const g = activeGame;
+  const unfinished = g.players.filter(p=>!p.finished);
+  // After all unfinished players have been processed, advance round
+  // We use turns to track — push turn after all players in round done
+  // Simple approach: re-render, round auto-advances when all hit/miss
+  g.turns.push(g.players.map(p=>({label:p.name,score:p.atcTarget||0})));
+  renderSpecialGameUI();
+}
+
+// Override addTurn button for special games
+const _origAddTurn = addTurn;
+function addTurn() {
+  const g = activeGame;
+  if (!g || !g.specialState) return _origAddTurn();
+  const s = g.specialState;
+  if (s.type === 'halveit') return halveitNextRound();
+  if (s.type === 'legs') return addTurnLegs();
+  return _origAddTurn();
+}
+
+function renderGameUI() {
+  const g = activeGame;
+  const m = g.mode;
+  const isVersus = m.type === 'versus' || m.type === 'teams';
+
+  // Scoreboard
+  const sb = document.getElementById('game-scoreboard');
+  sb.innerHTML = `<div class="scoreboard-grid">` +
+    (isVersus ? renderVersusScoreboard() : renderFFAScoreboard()) +
+    `</div>`;
+
+  // Status
+  const status = document.getElementById('game-status');
+  if (g.winCond.label) {
+    status.textContent = g.winCond.label;
+  } else if (g.winCond.type === 'points') {
+    status.textContent = `First to ${g.winCond.target} points wins`;
+  } else if (g.winCond.type === 'rounds') {
+    status.textContent = `Best of ${g.winCond.target*2-1} — first to ${g.winCond.target} rounds wins`;
+  } else {
+    status.textContent = `Manual — click End game when done`;
+  }
+
+  // Turn inputs
+  const ti = document.getElementById('turn-inputs');
+  const turnNum = g.turns.length + 1;
+  const isCountdown = g.winCond.type === 'countdown';
+  const isCountup = g.winCond.type === 'countup';
+  document.getElementById('turn-title').textContent =
+    isCountdown ? `Round ${turnNum} — enter points scored` :
+    isCountup   ? `Round ${turnNum} — enter points scored` :
+    `Round ${turnNum}`;
+
+  if (isVersus) {
+    // For versus: show score inputs for each side
+    const sides = groupBySide(g.players);
+    const label0 = sides[0].map(p=>p.name).join(' & ');
+    const label1 = sides[1].map(p=>p.name).join(' & ');
+    ti.innerHTML = `
+      <div class="turn-row"><div class="turn-label" title="${label0}">${label0}</div><input type="number" id="ti_0" class="turn-input" placeholder="0" min="0" max="999" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:0.65rem 1rem;font-size:1.4rem;font-family:'Playfair Display',serif;font-weight:700;text-align:center;width:100%;outline:none;"></div>
+      <div class="turn-row"><div class="turn-label" title="${label1}">${label1}</div><input type="number" id="ti_1" class="turn-input" placeholder="0" min="0" max="999" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:0.65rem 1rem;font-size:1.4rem;font-family:'Playfair Display',serif;font-weight:700;text-align:center;width:100%;outline:none;"></div>`;
+  } else {
+    // FFA: one input per player
+    ti.innerHTML = g.players.map((p,i) =>
+      `<div class="turn-row"><div class="turn-label" title="${p.name}">${p.name}</div><input type="number" id="ti_${i}" class="turn-input" placeholder="0" min="0" max="999" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;padding:0.65rem 1rem;font-size:1.4rem;font-family:'Playfair Display',serif;font-weight:700;text-align:center;width:100%;outline:none;"></div>`
+    ).join('');
+  }
+
+  // History
+  renderTurnHistory();
+}
+
+function groupBySide(players) {
+  return [
+    players.filter(p=>p.side===0),
+    players.filter(p=>p.side===1)
+  ];
+}
+
+function renderVersusScoreboard() {
+  const g = activeGame;
+  const sides = groupBySide(g.players);
+  const isCountdown = g.winCond.type === 'countdown';
+  const score0 = sides[0][0]?.score || 0;
+  const score1 = sides[1][0]?.score || 0;
+  const rw0 = sides[0][0]?.roundWins || 0;
+  const rw1 = sides[1][0]?.roundWins || 0;
+  // leader = lower score in countdown, higher score otherwise
+  const leader = isCountdown
+    ? (score0 < score1 ? 0 : score1 < score0 ? 1 : -1)
+    : (score0 > score1 ? 0 : score1 > score0 ? 1 : -1);
+  const name0 = sides[0].map(p=>p.name).join(' & ');
+  const name1 = sides[1].map(p=>p.name).join(' & ');
+  const sub0 = isCountdown ? `${rw0} bust${rw0!==1?'s':''}` : `${rw0} round${rw0!==1?'s':''} won`;
+  const sub1 = isCountdown ? `${rw1} bust${rw1!==1?'s':''}` : `${rw1} round${rw1!==1?'s':''} won`;
+  const scoreColor0 = isCountdown && score0 <= 50 ? '#e8622a' : '#fff';
+  const scoreColor1 = isCountdown && score1 <= 50 ? '#e8622a' : '#fff';
+  return `
+    <div class="sb-player ${leader===0?'leader':''}">
+      <div><div class="sb-name">${name0}</div><div class="sb-wins">${sub0}</div></div>
+      <div class="sb-score" style="color:${scoreColor0}">${score0}</div>
+    </div>
+    <div style="text-align:center;font-family:'Playfair Display',serif;font-style:italic;color:#6b5f4e;font-size:0.9rem;">${isCountdown?'↓ countdown ↓':'vs'}</div>
+    <div class="sb-player ${leader===1?'leader':''}">
+      <div><div class="sb-name">${name1}</div><div class="sb-wins">${sub1}</div></div>
+      <div class="sb-score" style="color:${scoreColor1}">${score1}</div>
+    </div>`;
+}
+
+function renderFFAScoreboard() {
+  const g = activeGame;
+  const isCountdown = g.winCond.type === 'countdown';
+  const sorted = isCountdown
+    ? [...g.players].sort((a,b)=>a.score-b.score)  // lowest remaining = winning
+    : [...g.players].sort((a,b)=>b.score-a.score);
+  return sorted.map((p,i) => {
+    const scoreColor = isCountdown && p.score <= 50 ? 'var(--orange)' : '#fff';
+    return `
+    <div class="sb-player ${i===0?'leader':''}">
+      <div><div class="sb-name">${i===0?'🎯 ':''}${p.name}</div></div>
+      <div class="sb-score" style="color:${scoreColor}">${p.score}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTurnHistory() {
+  const g = activeGame;
+  const wrap = document.getElementById('turn-history-wrap');
+  const hist = document.getElementById('turn-history');
+  if (!g.turns.length) { wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  hist.innerHTML = [...g.turns].reverse().map((turn,i) => {
+    const num = g.turns.length - i;
+    const scores = turn.map(t=>`${t.label} <strong>${t.score}</strong>`).join(' — ');
+    return `<div class="history-item"><span>Round ${num}</span><span class="history-scores">${scores}</span></div>`;
+  }).join('');
+}
+
+function addTurn() {
+  const g = activeGame;
+  const m = g.mode;
+  const isVersus = m.type === 'versus' || m.type === 'teams';
+  const isCountdown = g.winCond.type === 'countdown';
+  const isCountup = g.winCond.type === 'countup';
+
+  let turnData = [];
+
+  if (isVersus) {
+    const v0 = document.getElementById('ti_0')?.value;
+    const v1 = document.getElementById('ti_1')?.value;
+    if (v0===''||v1==='') return showToast('Enter scores for both sides!');
+    const s0 = parseInt(v0), s1 = parseInt(v1);
+    const sides = groupBySide(g.players);
+    const name0 = sides[0].map(p=>p.name).join(' & ');
+    const name1 = sides[1].map(p=>p.name).join(' & ');
+
+    if (isCountdown) {
+      // subtract — bust if goes below 0
+      const new0 = sides[0][0].score - s0;
+      const new1 = sides[1][0].score - s1;
+      if (new0 < 0) {
+        showToast(`💥 Bust! ${name0} stays at ${sides[0][0].score}`);
+        sides[0].forEach(p=>p.roundWins++); // track busts in roundWins field
+        turnData = [{label:name0, score:'BUST'},{label:name1, score:s1}];
+        // only subtract valid side
+        if (new1 >= 0) sides[1].forEach(p=>p.score=new1);
+      } else if (new1 < 0) {
+        showToast(`💥 Bust! ${name1} stays at ${sides[1][0].score}`);
+        sides[1].forEach(p=>p.roundWins++);
+        turnData = [{label:name0, score:s0},{label:name1, score:'BUST'}];
+        sides[0].forEach(p=>p.score=new0);
+      } else {
+        sides[0].forEach(p=>p.score=new0);
+        sides[1].forEach(p=>p.score=new1);
+        turnData = [{label:name0, score:s0},{label:name1, score:s1}];
+      }
+    } else if (g.winCond.type === 'points' || isCountup) {
+      sides[0].forEach(p=>p.score+=s0);
+      sides[1].forEach(p=>p.score+=s1);
+      turnData = [{label:name0,score:s0},{label:name1,score:s1}];
+    } else {
+      // rounds
+      if (s0 > s1) sides[0].forEach(p=>{ p.roundWins++; p.score=p.roundWins; });
+      else if (s1 > s0) sides[1].forEach(p=>{ p.roundWins++; p.score=p.roundWins; });
+      turnData = [{label:name0,score:s0},{label:name1,score:s1}];
+    }
+
+  } else {
+    // FFA
+    let anyEmpty = false;
+    g.players.forEach((p,i) => { if (document.getElementById(`ti_${i}`)?.value==='') anyEmpty=true; });
+    if (anyEmpty) return showToast('Enter scores for all players!');
+
+    if (isCountdown) {
+      g.players.forEach((p,i) => {
+        const s = parseInt(document.getElementById(`ti_${i}`).value);
+        const newScore = p.score - s;
+        if (newScore < 0) {
+          showToast(`💥 Bust! ${p.name} stays at ${p.score}`);
+          p.roundWins++; // bust counter
+          turnData.push({label:p.name, score:'BUST'});
+        } else {
+          p.score = newScore;
+          turnData.push({label:p.name, score:s});
+        }
+      });
+    } else {
+      g.players.forEach((p,i) => {
+        const s = parseInt(document.getElementById(`ti_${i}`).value);
+        p.score += s;
+        turnData.push({label:p.name, score:s});
+      });
+    }
+  }
+
+  g.turns.push(turnData);
+  renderGameUI();
+  checkWinCondition();
+}
+
+function checkWinCondition() {
+  const g = activeGame;
+  const m = g.mode;
+  const isVersus = m.type === 'versus' || m.type === 'teams';
+
+  if (g.winCond.type === 'manual' || g.winCond.type === 'countup') return;
+
+  if (g.winCond.type === 'countdown') {
+    if (isVersus) {
+      const sides = groupBySide(g.players);
+      if (sides[0][0].score === 0 || sides[1][0].score === 0) setTimeout(()=>endGame(), 400);
+    } else {
+      if (g.players.some(p=>p.score===0)) setTimeout(()=>endGame(), 400);
+    }
+    return;
+  }
+
+  if (isVersus) {
+    const sides = groupBySide(g.players);
+    const score0 = sides[0][0]?.score || 0;
+    const score1 = sides[1][0]?.score || 0;
+    const target = g.winCond.target;
+    if (g.winCond.type === 'points') {
+      if (score0 >= target || score1 >= target) setTimeout(()=>endGame(), 300);
+    } else if (g.winCond.type === 'rounds') {
+      const rw0 = sides[0][0]?.roundWins || 0;
+      const rw1 = sides[1][0]?.roundWins || 0;
+      if (rw0 >= target || rw1 >= target) setTimeout(()=>endGame(), 300);
+    }
+  } else {
+    if (g.winCond.type === 'points') {
+      const leader = g.players.reduce((a,b)=>a.score>b.score?a:b);
+      if (leader.score >= g.winCond.target) setTimeout(()=>endGame(), 300);
+    }
+  }
+}
+
+function endGame() {
+  const g = activeGame;
+  if (!g) return;
+  if (!g.turns.length) return showToast('Add at least one round first!');
+
+  const m = g.mode;
+  const isVersus = m.type === 'versus' || m.type === 'teams';
+  const s = g.specialState;
+
+  let winner, winnerNames, team1, team2, score1, score2, allNames;
+
+  // Special game winner logic
+  if (s && s.type === 'legs') {
+    const remaining = g.players.filter(p=>!p.eliminated);
+    const w = remaining[0] || g.players.reduce((a,b)=>a.legs>b.legs?a:b);
+    winner = w.name; winnerNames = [w.name];
+    team1 = w.name; team2 = g.players.find(p=>p!==w)?.name||'';
+    score1 = w.legs; score2 = 0;
+    allNames = g.players.map(p=>p.name);
+  } else if (s && s.type === 'atc') {
+    const finished = g.players.filter(p=>p.finished).sort((a,b)=>a.score-b.score);
+    const w = finished[0] || g.players[0];
+    winner = w.name; winnerNames = [w.name];
+    team1 = w.name; team2 = g.players.find(p=>p!==w)?.name||'';
+    score1 = 1; score2 = 2;
+    allNames = g.players.map(p=>p.name);
+  } else if (s && (s.type === 'halveit' || s.type === 'shanghai')) {
+    const sorted = [...g.players].sort((a,b)=>b.score-a.score);
+    const isDraw = sorted[0].score === sorted[1]?.score;
+    winner = isDraw?'Draw':sorted[0].name;
+    winnerNames = isDraw?[]:sorted.filter(p=>p.score===sorted[0].score).map(p=>p.name);
+    team1 = sorted[0].name; team2 = sorted[1]?.name||'';
+    score1 = sorted[0].score; score2 = sorted[1]?.score||0;
+    allNames = g.players.map(p=>p.name);
+  } else if (isVersus) {
+    const sides = groupBySide(g.players);
+    let s0, s1;
+    if (g.winCond.type === 'countdown') {
+      // winner = who reached 0 (lower remaining score wins)
+      s0 = sides[0][0]?.score || 0;
+      s1 = sides[1][0]?.score || 0;
+      team1 = sides[0].map(p=>p.name).join(' & ');
+      team2 = sides[1].map(p=>p.name).join(' & ');
+      score1 = s0; score2 = s1;
+      winner = s0 < s1 ? team1 : s1 < s0 ? team2 : 'Draw';
+      winnerNames = s0 < s1 ? sides[0].map(p=>p.name) : s1 < s0 ? sides[1].map(p=>p.name) : [];
+    } else {
+      s0 = g.winCond.type==='rounds' ? (sides[0][0]?.roundWins||0) : sides[0].reduce((a,p)=>a+p.score,0);
+      s1 = g.winCond.type==='rounds' ? (sides[1][0]?.roundWins||0) : sides[1].reduce((a,p)=>a+p.score,0);
+      team1 = sides[0].map(p=>p.name).join(' & ');
+      team2 = sides[1].map(p=>p.name).join(' & ');
+      score1 = s0; score2 = s1;
+      winner = s0>s1?team1:s1>s0?team2:'Draw';
+      winnerNames = s0>s1?sides[0].map(p=>p.name):s1>s0?sides[1].map(p=>p.name):[];
+    }
+    allNames = g.players.map(p=>p.name);
+  } else {
+    let sorted;
+    if (g.winCond.type === 'countdown') {
+      sorted = [...g.players].sort((a,b)=>a.score-b.score); // lowest remaining wins
+    } else {
+      sorted = [...g.players].sort((a,b)=>b.score-a.score);
+    }
+    const isDraw = sorted[0].score===sorted[1]?.score;
+    team1 = sorted[0].name; team2 = sorted[1]?.name || '';
+    score1 = sorted[0].score; score2 = sorted[1]?.score || 0;
+    winner = isDraw?'Draw':sorted[0].name;
+    winnerNames = isDraw?[]:sorted.filter(p=>p.score===sorted[0].score).map(p=>p.name);
+    allNames = g.players.map(p=>p.name);
+  }
+
+  // Record stats
+  recordResult(allNames, winnerNames, g.game);
+
+  // Save to history
+  const entry = {
+    id:Date.now(),
+    game:g.game, variant:g.variant, mode:m.id,
+    team1, team2, score1, score2, winner,
+    turns:g.turns.length,
+    date:new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+  };
+  scores.unshift(entry);
+  if (scores.length>100) scores=scores.slice(0,100);
+  localStorage.setItem('cue_scores',JSON.stringify(scores));
+
+  const emoji = winner==='Draw'?'🤝':'🏆';
+  const msg = winner==='Draw'?'Draw!':winner+' wins!';
+  showToast(emoji+' '+msg);
+
+  activeGame = null;
+  document.getElementById('game-active').style.display='none';
+  document.getElementById('submit-form').style.display='none';
+  document.querySelectorAll('.game-card').forEach(c=>c.classList.remove('selected'));
+  selectedGame=null; selectedMode=null;
+}
+
+// ── LEGACY SUBMIT (kept for compat) ──────────────────────────────
+function submitScore() { endGame(); }
+
+function showToast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2600);
+}
+
+// ── LEADERBOARD ───────────────────────────────────────────────────
+function filterScores(type,btn) {
+  activeFilter=type;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderScores();
+}
+
+function renderScores() {
+  const list=document.getElementById('scores-list');
+  const filtered=activeFilter==='all'?scores:scores.filter(s=>s.game===activeFilter);
+  if (!filtered.length) {
+    const [l1,l2]=(t('empty_play')||'No results\nBe first').split('\n');
+    list.innerHTML=`<div class="empty-state"><span class="big">—</span>${l1}<br>${l2||''}</div>`; return;
+  }
+  const gameLabel=g=>({darts:'Darts',pong:'Ping Pong',pool:'Pool',shuffleboard:'Shuffleboard'}[g]||g);
+  list.innerHTML=filtered.map((s,i)=>{
+    const ri=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    const rc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const isDraw=s.winner==='Draw';
+    const winTag=`<span class="winner-tag">${t('win')}</span>`;
+    const drawTag=`<span class="winner-tag" style="background:var(--muted)">${t('draw')}</span>`;
+    let matchHtml;
+    if (s.players&&s.players.length>2) {
+      matchHtml=s.players.map((p,pi)=>`<span>${p.name} <strong style="color:var(--orange)">${p.score}</strong>${pi<s.players.length-1?' · ':''}</span>`).join('')+(isDraw?drawTag:`<span class="winner-tag">${s.winner} ${lang==='no'?'vant':'wins'}</span>`);
+    } else {
+      matchHtml=`${s.team1} ${!isDraw&&s.winner===s.team1?winTag:''} <span style="color:var(--border)">vs</span> ${s.team2} ${!isDraw&&s.winner===s.team2?winTag:''} ${isDraw?drawTag:''}`;
+    }
+    const modeObj=getModes().find(m=>m.id===s.mode);
+    const modeName=modeObj?t(modeObj.lk):'';
+    return `<div class="score-entry">
+      <div class="rank ${rc}">${ri}</div>
+      <div style="min-width:0">
+        <div class="entry-match" style="flex-wrap:wrap">${matchHtml}</div>
+        <div class="entry-meta">${gameLabel(s.game)} · ${s.variant}${modeName?' · '+modeName:''} · ${s.date}</div>
+      </div>
+      ${!s.players||s.players.length<=2?`<div class="entry-score">${s.score1}<span class="sep"> : </span>${s.score2}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function clearScores() {
+  scores = [];
+  localStorage.removeItem('cue_scores');
+  renderScores();
+  showToast('Results cleared');
+}
+
+function resetAll() {
+  scores = []; session = {}; activeGame = null;
+  localStorage.removeItem('cue_scores');
+  renderScores();
+  renderPlayersPage();
+  resetForm();
+  showToast('Reset complete');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+renderRules();
+applyLang();
+renderScores();
+renderPlayersPage();
+</script>
+</body>
+</html>
